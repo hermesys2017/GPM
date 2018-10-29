@@ -1,0 +1,1030 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>GPMDialogBase</class>
+ <widget class="QDialog" name="GPMDialogBase">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>541</width>
+    <height>397</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>GPM</string>
+  </property>
+  <widget class="QToolBox" name="toolBox">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>541</width>
+     <height>391</height>
+    </rect>
+   </property>
+   <property name="currentIndex">
+    <number>7</number>
+   </property>
+   <widget class="QWidget" name="page">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>541</width>
+      <height>183</height>
+     </rect>
+    </property>
+    <attribute name="label">
+     <string>HDF5 Convert</string>
+    </attribute>
+    <widget class="QLabel" name="label">
+     <property name="geometry">
+      <rect>
+       <x>4</x>
+       <y>0</y>
+       <width>170</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>HDF5 내부 path[/없이 기임]:</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_2">
+     <property name="geometry">
+      <rect>
+       <x>63</x>
+       <y>26</y>
+       <width>100</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>HDF5 내부 Name:</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_3">
+     <property name="geometry">
+      <rect>
+       <x>92</x>
+       <y>50</y>
+       <width>70</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Select Files:</string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_hdf5path">
+     <property name="geometry">
+      <rect>
+       <x>170</x>
+       <y>0</y>
+       <width>321</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_hdf5name">
+     <property name="geometry">
+      <rect>
+       <x>170</x>
+       <y>25</y>
+       <width>321</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_selecfiles">
+     <property name="geometry">
+      <rect>
+       <x>170</x>
+       <y>50</y>
+       <width>321</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_hdf5path">
+     <property name="geometry">
+      <rect>
+       <x>495</x>
+       <y>0</y>
+       <width>40</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_hdf5name">
+     <property name="geometry">
+      <rect>
+       <x>495</x>
+       <y>24</y>
+       <width>40</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_selectfiles">
+     <property name="geometry">
+      <rect>
+       <x>495</x>
+       <y>48</y>
+       <width>40</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QTableWidget" name="tb_hdf5">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>75</y>
+       <width>511</width>
+       <height>80</height>
+      </rect>
+     </property>
+     <attribute name="horizontalHeaderCascadingSectionResizes">
+      <bool>false</bool>
+     </attribute>
+     <attribute name="horizontalHeaderStretchLastSection">
+      <bool>true</bool>
+     </attribute>
+     <column>
+      <property name="text">
+       <string>순번</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>파일 목록</string>
+      </property>
+     </column>
+    </widget>
+    <widget class="QPushButton" name="btn_apply_hdf5">
+     <property name="geometry">
+      <rect>
+       <x>420</x>
+       <y>158</y>
+       <width>110</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="page_2">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>541</width>
+      <height>183</height>
+     </rect>
+    </property>
+    <attribute name="label">
+     <string>CLIP</string>
+    </attribute>
+    <widget class="QLabel" name="label_7">
+     <property name="geometry">
+      <rect>
+       <x>15</x>
+       <y>10</y>
+       <width>110</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Input Data Folder :</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_8">
+     <property name="geometry">
+      <rect>
+       <x>56</x>
+       <y>56</y>
+       <width>70</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Clip Zone :</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_9">
+     <property name="geometry">
+      <rect>
+       <x>8</x>
+       <y>103</y>
+       <width>120</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Output Data Folder : </string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_input_clip">
+     <property name="geometry">
+      <rect>
+       <x>122</x>
+       <y>3</y>
+       <width>360</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_output_clip">
+     <property name="geometry">
+      <rect>
+       <x>122</x>
+       <y>98</y>
+       <width>360</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QComboBox" name="cmb_clip_zone">
+     <property name="geometry">
+      <rect>
+       <x>122</x>
+       <y>50</y>
+       <width>300</width>
+       <height>22</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_input_clip">
+     <property name="geometry">
+      <rect>
+       <x>486</x>
+       <y>1</y>
+       <width>50</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_output_clip">
+     <property name="geometry">
+      <rect>
+       <x>486</x>
+       <y>97</y>
+       <width>50</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_apply_clip">
+     <property name="geometry">
+      <rect>
+       <x>425</x>
+       <y>145</y>
+       <width>110</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="page_3">
+    <attribute name="label">
+     <string>UTM</string>
+    </attribute>
+    <widget class="QLabel" name="label_10">
+     <property name="geometry">
+      <rect>
+       <x>17</x>
+       <y>5</y>
+       <width>110</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Input Data Folder :</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_11">
+     <property name="geometry">
+      <rect>
+       <x>85</x>
+       <y>53</y>
+       <width>40</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>UTM : </string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_12">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>100</y>
+       <width>120</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Output Data Folder : </string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_input_utm">
+     <property name="geometry">
+      <rect>
+       <x>125</x>
+       <y>0</y>
+       <width>350</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_output_utm">
+     <property name="geometry">
+      <rect>
+       <x>127</x>
+       <y>94</y>
+       <width>350</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QComboBox" name="cmb_utm">
+     <property name="geometry">
+      <rect>
+       <x>126</x>
+       <y>47</y>
+       <width>290</width>
+       <height>22</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_input_utm">
+     <property name="geometry">
+      <rect>
+       <x>480</x>
+       <y>-1</y>
+       <width>50</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_addutm">
+     <property name="geometry">
+      <rect>
+       <x>422</x>
+       <y>46</y>
+       <width>110</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>UTM Add</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_output_utm">
+     <property name="geometry">
+      <rect>
+       <x>480</x>
+       <y>93</y>
+       <width>50</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_apply_utm">
+     <property name="geometry">
+      <rect>
+       <x>410</x>
+       <y>136</y>
+       <width>120</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="page_4">
+    <attribute name="label">
+     <string>Resample</string>
+    </attribute>
+    <widget class="QLabel" name="label_13">
+     <property name="geometry">
+      <rect>
+       <x>17</x>
+       <y>4</y>
+       <width>110</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Input Data Folder :</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_14">
+     <property name="geometry">
+      <rect>
+       <x>67</x>
+       <y>59</y>
+       <width>56</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Cellsize : </string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_15">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>113</y>
+       <width>120</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Output Data Folder : </string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_input_resample">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>0</y>
+       <width>350</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_resample_method">
+     <property name="geometry">
+      <rect>
+       <x>424</x>
+       <y>53</y>
+       <width>104</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_output_resample">
+     <property name="geometry">
+      <rect>
+       <x>129</x>
+       <y>108</y>
+       <width>350</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QSpinBox" name="cellsize">
+     <property name="geometry">
+      <rect>
+       <x>129</x>
+       <y>54</y>
+       <width>120</width>
+       <height>22</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_input_resample">
+     <property name="geometry">
+      <rect>
+       <x>490</x>
+       <y>0</y>
+       <width>40</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_output_resample">
+     <property name="geometry">
+      <rect>
+       <x>488</x>
+       <y>107</y>
+       <width>40</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_apply_resample">
+     <property name="geometry">
+      <rect>
+       <x>415</x>
+       <y>154</y>
+       <width>110</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_16">
+     <property name="geometry">
+      <rect>
+       <x>298</x>
+       <y>59</y>
+       <width>130</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Resampling Method : </string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="page_5">
+    <attribute name="label">
+     <string>Accum</string>
+    </attribute>
+    <widget class="QTextEdit" name="txt_input_accum">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>4</y>
+       <width>360</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_reference_shp">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>54</y>
+       <width>150</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_output_accum">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>103</y>
+       <width>360</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_input_accum">
+     <property name="geometry">
+      <rect>
+       <x>494</x>
+       <y>2</y>
+       <width>40</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_output_accum">
+     <property name="geometry">
+      <rect>
+       <x>495</x>
+       <y>101</y>
+       <width>40</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_apply_accum">
+     <property name="geometry">
+      <rect>
+       <x>425</x>
+       <y>144</y>
+       <width>110</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+    <widget class="QCheckBox" name="chk_calc">
+     <property name="geometry">
+      <rect>
+       <x>295</x>
+       <y>56</y>
+       <width>120</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Calc SUM, AVG</string>
+     </property>
+    </widget>
+    <widget class="QCheckBox" name="chk_mapdisplay">
+     <property name="geometry">
+      <rect>
+       <x>425</x>
+       <y>55</y>
+       <width>100</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Map Display</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_17">
+     <property name="geometry">
+      <rect>
+       <x>18</x>
+       <y>10</y>
+       <width>110</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Input Data Folder :</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_18">
+     <property name="geometry">
+      <rect>
+       <x>28</x>
+       <y>60</y>
+       <width>100</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Reference SHP : </string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_19">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>107</y>
+       <width>120</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Output Data Folder :</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="page_6">
+    <attribute name="label">
+     <string>Make CSV</string>
+    </attribute>
+    <widget class="QLabel" name="label_20">
+     <property name="geometry">
+      <rect>
+       <x>31</x>
+       <y>30</y>
+       <width>70</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Point SHP :</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_21">
+     <property name="geometry">
+      <rect>
+       <x>31</x>
+       <y>80</y>
+       <width>70</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>SHP Field :</string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_csv_shp">
+     <property name="geometry">
+      <rect>
+       <x>101</x>
+       <y>24</y>
+       <width>360</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_csv_shp">
+     <property name="geometry">
+      <rect>
+       <x>467</x>
+       <y>23</y>
+       <width>40</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_shp_field">
+     <property name="geometry">
+      <rect>
+       <x>101</x>
+       <y>76</y>
+       <width>404</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_apply_csv">
+     <property name="geometry">
+      <rect>
+       <x>425</x>
+       <y>120</y>
+       <width>80</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="page_7">
+    <attribute name="label">
+     <string>Function</string>
+    </attribute>
+    <widget class="QPushButton" name="btn_apply_function">
+     <property name="geometry">
+      <rect>
+       <x>446</x>
+       <y>72</y>
+       <width>75</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_function">
+     <property name="geometry">
+      <rect>
+       <x>90</x>
+       <y>74</y>
+       <width>350</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_22">
+     <property name="geometry">
+      <rect>
+       <x>26</x>
+       <y>79</y>
+       <width>60</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Function : </string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="page_8">
+    <attribute name="label">
+     <string>Make ASC</string>
+    </attribute>
+    <widget class="QLabel" name="label_23">
+     <property name="geometry">
+      <rect>
+       <x>34</x>
+       <y>50</y>
+       <width>70</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Input Data :</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_24">
+     <property name="geometry">
+      <rect>
+       <x>26</x>
+       <y>100</y>
+       <width>80</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Output Data :</string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_input_asc">
+     <property name="geometry">
+      <rect>
+       <x>105</x>
+       <y>45</y>
+       <width>350</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txt_output_asc">
+     <property name="geometry">
+      <rect>
+       <x>105</x>
+       <y>95</y>
+       <width>350</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_input_asc">
+     <property name="geometry">
+      <rect>
+       <x>463</x>
+       <y>44</y>
+       <width>50</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_output_asc">
+     <property name="geometry">
+      <rect>
+       <x>462</x>
+       <y>94</y>
+       <width>50</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btn_apply_asc">
+     <property name="geometry">
+      <rect>
+       <x>437</x>
+       <y>142</y>
+       <width>75</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Apply</string>
+     </property>
+    </widget>
+   </widget>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

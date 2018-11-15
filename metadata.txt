@@ -7,10 +7,10 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=GPM
+name=GPM_developer
 qgisMinimumVersion=2.0
-description=GPM
-version=0.0.16
+description=GPM_developer
+version=0.0.18
 author=Hermesys
 email=mhcho058@hermesys.co.kr
 
@@ -69,6 +69,15 @@ changelog=
 	
 	v0.0.16
 		Accum - 오류 수정
+		완료 파업창 추가 - make csv, Function
+	
+	v0.0.17
+		Satellitecorrection - 오류 수정
+		
+	v0.0.18
+		Make CSV - message 오류 수정
+		Satellitecorrection - 플러그인 구동 확인
+		
 		
 
 # Tags are comma separated with spaces allowed
@@ -76,7 +85,7 @@ tags=python,gpm
 
 #homepage=http://homepage
 category=Raster
-icon=GPM.png
+icon=icon/GPM_developer.png
 # experimental flag
 experimental=True
 

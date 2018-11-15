@@ -51,14 +51,15 @@ class accum_util():
 #                 run_saga=saga_path+" grid_calculus 8 {0} {1}".format(grids,results)
                 run_saga=[osgeo4w,
                           saga_path,"grid_calculus","8",
-                          "-GRIDS",listTostr,            
+                          "-GRIDS",listTostr,
+#                           "-USE_NODATA","true",           
                           "-RESULT",output]
-                
+                #nodata 추가함
 #                 create_file.write(str(run_saga)+"\n")
 #                 call_arg =[osgeo4w,run_saga]
 #             os.system(run_saga,shell=True)
                 
-                subprocess.call(run_saga,shell=True)
+                subprocess.call(run_saga)
 
 #                 subprocess.call(run_saga, shell=True) #나중에 shell=True 사용해서 cmd 안뜨게 함/
                 sleep(0.5)
@@ -99,10 +100,6 @@ class accum_util():
 #         create_filename = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_Accum_Amount.txt"
 #         create_file = open(create_filename,'w+')
 #         arg = gdal_calc + " -A {0} --format GTiff --calc A*30/60 --outfile {1}".format(input,output)
-#         call_arg = [osgeo4w,
-#                     gdal_calc,
-#                     "-A",input,"--format","GTiff","--calc","A*30/60",
-#                     "--outfile",str(output)]
         call_arg = [osgeo4w,
                     "gdal_calc",
                     "-A",input,"--format","GTiff","--calc","A*30/60",

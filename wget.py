@@ -10,9 +10,22 @@ wget bat script �젣�옉
 import os
 from datetime import datetime,timedelta
 import getpass
+import traceback  
 
-
-
+def trace_file():
+    output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.txt"
+    while True:
+        try:
+            #check email code here
+            print "Nothing going on here"
+            lets_make_an_error = "error" + 1
+        except:
+            print "Something went wrong, lets write that to a file"
+            errstr = traceback.format_exc()
+            f = open(output,'a')
+            f.write(errstr)
+            f.close()
+            break
 
 def create_bat_script(start,end,folder):
     output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.bat"
@@ -78,5 +91,6 @@ def create_bat_script(start,end,folder):
 #             print arg
     file.close()
     
-    
+    #2018-11-14 바로 실행 테스트
+    return output
 # create_bat_script("2014-03-12","2014-06-11")

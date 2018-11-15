@@ -1,5 +1,5 @@
 <RCC>
     <qresource prefix="/plugins/GPM" >
-        <file>icon/GPM.png</file>
+        <file>icon/GPM_developer.png</file>
     </qresource>
 </RCC>

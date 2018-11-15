@@ -22,6 +22,10 @@
 """
 
 import os,sys,shutil
+# bin_directory ="C:/Program Files/QGIS 2.18/apps/qgis-ltr/python/qgis;"
+# os.environ['PATH'] += os.path.pathsep + bin_directory
+
+
 import sys
 from PyQt4 import QtGui, uic
 from PyQt4.QtCore import *
@@ -43,10 +47,11 @@ import imageio
 import OneFileCorrection_class as OneFile
 import coordinate_class
 import util_accum
+from time import  sleep
 import time
-from time import time, sleep
 import ProgressBar
 import wget
+import transpose_Tiff as tr_Tiff
 
 _iface ={}
 # 2018-08-06 박: 기능 테스트로 임시 추가 
@@ -82,6 +87,7 @@ csv 파일 변환하는 함수에서 _coord 로 해둔 부분이 있음.
 _coord = coordinate_class.place_to_coordinate()
 _corr=OneFile.satellite_correction()
 _utilAC = util_accum.accum_util()
+_tr_Tiff=tr_Tiff.transpose_Tiff_class()
 
 os.environ['GDAL_DATA'] = os.popen('gdal-config --datadir').read().rstrip()
 bin_directory = r"C:/Program Files/QGIS 2.18/OSGeo4W.bat"
@@ -93,8 +99,12 @@ cursor=0
 
 _ASC_filename=[]
 _CSV_filename=[]
-select_file=[]
+# select_file=[]
+select_file=""
+select_SHP=""
 _PNG_filename=[]
+# fieldNames=[]
+# convert_crs=[]
 
 # gdal_path = os.path.dirname(os.path.abspath(__file__))+"/Lib/gdal/gdal/apps/"
 # /GPM/Lib/gdal/gdal/apps/gdal_translate.exe
@@ -130,7 +140,11 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         self.rdo_Files.toggled.connect(self.Select_radio_event)
 
         self.Select_radio_event()
-
+        
+        # 2018-10-31츄가
+        # 사용자가 참조할 SHP 파일 선택 이벤트.
+        self.btn_inputSHP.clicked.connect(self.input_Ref_SHP)
+        
         #사용자가 ASC 파일 선택 이벤트
         self.btnOpenDialog_Input.clicked.connect(self.Select_ASC_event)
 
@@ -138,7 +152,9 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         self.btn_Select_Covert_File.clicked.connect(self.Select_CSV_event)
 
         # Convert 버튼 이벤트
-        self.btn_Covert.clicked.connect(self.Convert_CSV_event)
+#         self.btn_Covert.clicked.connect(self.Convert_CSV_event)
+        self.btn_Covert.clicked.connect(self.Convert_CSV_time)
+        
 
         # btn_Apply 버튼 이벤트 모든 리스트 파일이 있을때 작동
 #         self.btn_Apply.clicked.connect(self.Apply_AllList_event)
@@ -570,9 +586,12 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                     Output =  folder + filename+"_Convert.tif"
 #                     Output = file.replace(filename, filename + "_Convert")
                     
+                    #2018-11-15 numpy 사용으로 변경
+                    transpose_TIFF =  _tr_Tiff.img_to_array(file,Output)
+                    QgsMessageLog.logMessage(str(transpose_TIFF),"GPM HDF5")
     #                2018-09-16 JO : 원exe2 사용
-                    converter_exe =  os.path.dirname(os.path.abspath(__file__))+"/Lib/kict_sra_gpm_converter\KICT_SRA_GPM_Converter.exe" 
-                    sub.call([converter_exe, file, Output],shell=True)
+#                     converter_exe =  os.path.dirname(os.path.abspath(__file__))+"/Lib/kict_sra_gpm_converter\KICT_SRA_GPM_Converter.exe" 
+#                     sub.call([converter_exe, file, Output],shell=True)
                     #2018-10-17 : JO - output 파일이 실존하면 리스트에 추가되도록 수정함. 
                     try:
                         if (os.path.exists(Output)) == True:
@@ -787,7 +806,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #                 arg = arg +" "+ file +" " + Output
                 
                 #gdalwarp.exe가 QGIS에도 있으므로... 굳이 경로 다 안써도 됨..;; _ JO                
-                arg = 'gdalwarp.exe -overwrite -t_srs '+"\""+t_srs+"\""+(' -of GTiff {0} {1}').format(file,Output)
+                arg = 'gdalwarp -overwrite -t_srs '+"\""+t_srs+"\""+(' -of GTiff {0} {1}').format(file,Output)
                 exe=_util.Execute(arg)
                 sleep(1)
                 utm_count=utm_count+1
@@ -1119,8 +1138,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             get_field = self.txt_fieldname_shp.text()
             output_file = self.txt_shp_field.text()
                         
-            self.csv_file = open(output_file,'w+')
-            self.csv_file.write("filename")
+            
             if Input_file.strip() == "":
                 _util.MessageboxShowInfo("GPM", "Select shp file ")
                 self.txt_csv_shp.setFocus()
@@ -1132,6 +1150,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 self.txt_shp_field.setFocus()
                 return
             
+            #여기서 중요 포인트는 shape 파일은 반드시 좌표계를 지니고 있어야함(prj 파일) 
             v_layer =QgsVectorLayer(Input_file,"SHP","ogr")
             
             if get_field.strip() =="":
@@ -1140,16 +1159,28 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 return  
             
             try:
-                self.get_shape_coord(v_layer,(self.txt_fieldname_shp.text()))
+                # 2018-11-09 : 헤더가 존재하면 파일을 생성하고 없으면 생성하지 않음
+                self.csv_file = open(output_file,'w+')
+                self.csv_file.write("filename")
+                get_shape_fieldname = self.get_shape_coord(v_layer,(self.txt_fieldname_shp.text()))
+                #lOG
+                QgsMessageLog.logMessage(str(get_shape_fieldname),"GPM MAKE CSV")
                 
-                cell_values = self.shape_coord_raster_cellvalue(self.filenames)
-                _util.MessageboxShowInfo("Make CSV","Make CSV Function Completed.")
-                
+#                 #2018-11-09 : get_shape_fieldname 이 정상 수행 되었을 때 다음 수행    
+                if get_shape_fieldname == True:
+                    cell_values = self.shape_coord_raster_cellvalue(self.filenames)
+                    self.csv_file.close() 
+                    _util.MessageboxShowInfo("Make CSV","Make CSV Function Completed.")
+                    
             except Exception as e:
                 _util.MessageboxShowInfo("GPM", str(e))
 #             field_name=self.get_shape_field(v_layer,self.txt_fieldname_shp.text())
             
-            self.csv_file.close()
+            #2018-11-09 : get_shape_fieldname 이 None인 경우 생성되었던 csv_file 제거한다.
+            if get_shape_fieldname == False:
+                self.csv_file.close()    
+                os.remove(output_file)
+                return
             
 #             _util.ConvertShapeToCSV(Input_file,output_file)
         except Exception as e:
@@ -1167,24 +1198,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         fieldNames = []
         fields = prov.fields()
         for field in fields:
-#             QgsMessageLog.logMessage((str(field.name()).upper().decode('cp949').encode('utf-8')),"GPM CSV cp->utf8")
-#             fieldNames.append( ((str(field.name())).upper()).decode('cp949').encode('utf-8') )
             fieldNames.append( ((str(field.name())).upper()))
-#             QgsMessageLog.logMessage((str(field.name()).upper()),"GPM CSV ")
-#             QgsMessageLog.logMessage((str(field.name()).upper().decode('utf-8').encode('utf-8')),"GPM CSV utf8->utf8")
-#             QgsMessageLog.logMessage((str(field.name()).upper()).decode('utf-8','ignore'),"GPM CSV decode utf8->ignore")
-#             QgsMessageLog.logMessage((str(field.name()).upper()).decode('cp949','utf-8'),"GPM CSV decode utf8->ignore")
-#             QgsMessageLog.logMessage((str(field.name()).upper()).decode('euc-kr'),"GPM CSV decode 'euc-kr'")
-#             QgsMessageLog.logMessage((str(field.name()).upper()).decode('euc-kr','cp949'),"GPM CSV decode 'euc-kr'->'cp949'")
-#             QgsMessageLog.logMessage((str(field.name()).upper()).decode('euc-kr','ignore'),"GPM CSV decode 'euc-kr'->ignore")
-#             QgsMessageLog.logMessage(unicode(str(field.name()).upper()),"GPM CSV unicode")
-#             QgsMessageLog.logMessage((str(field.name()).upper()).decode('cp949','ignore'),"GPM CSV decode cp->ignore")
-#             QgsMessageLog.logMessage((str(field.name()).upper()).encode('cp949'),"GPM CSV encode cp")
-#             QgsMessageLog.logMessage((str(field.name()).upper()).decode('utf8'),"GPM CSV decode utf8")
-#             QgsMessageLog.logMessage((str(field.name()).upper()).encode('utf8'),"GPM CSV encode utf8")
-#             QgsMessageLog.logMessage(unicode(str(field.name()).upper(),'utf8'),"GPM CSV uni utf8")
-            
-            
             
 #         for name in fieldNames:
 #             if (name == txt):
@@ -1193,7 +1207,10 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         self.point_list = []         
         #필드 값이 있는 것이면 수행. 없으면 msg
         if ((txt.upper())) not in fieldNames:
-            _util.MessageboxShowInfo("GPM", "No have FieldName")       
+            _util.MessageboxShowInfo("GPM", "No have FieldName")
+            #2018-11-09 msg 출력 후 에 진행 X, return으로 stop 시킴      
+            return False
+
         if ((txt.upper())) in fieldNames:
             for feat in features:
                 #좌표값
@@ -1204,7 +1221,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
     #             QgsMessageLog.logMessage(str(feat[txt]),"GPM CSV 1")
 #                 self.csv_file.write(","+str(feat[(((txt.upper()).decode('cp949').encode('utf-8')))]))
                 self.csv_file.write(","+str(feat[(txt.upper())]))
-            
+        return True
                 
     # shape 좌표 위치의 래스터 셀 값 가져오기
     # 래스터 선택해야 함.
@@ -1221,7 +1238,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                     if ident.isValid():
     #                     QgsMessageLog.logMessage(str(ident.results()[1]),"GPM CSV 2")
                         self.csv_file.write(","+str(ident.results()[1]))
-                
+            
     #                     return str(ident.results()[1])
         except Exception as e:
             _util.MessageboxShowError("GPM",str(e))
@@ -1358,6 +1375,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 return
             
             i = 0 ; count_pro_asc=1; self.asc_progressBar.setValue(0); self.asc_progressBar.setMaximum(len(str_Input_file))
+            arg = "gdal_translate.exe"
             for asc in str_Input_file:
                 filename = _util.GetFilename(asc)
                 output_filename = self.txt_output_asc.text() + ("/{0}.asc").format(filename)
@@ -1365,6 +1383,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #                 QgsMessageLog.logMessage(str(i) + " : "+ str(asc), "GPM CONVERT ASC")
 #                 QgsMessageLog.logMessage(str(i) + " : "+ str(output_filename), "GPM CONVERT ASC")
 #                 i=i+1
+                
                 _util.ConvertRasterToASC(asc,output_filename)
                 sleep(1)
                 self.asc_progressBar.setValue(count_pro_asc)
@@ -1383,9 +1402,9 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
     def Set_treeWidget(self):
         self.treeWidget.setHeaderHidden(True)
         item9 = QtGui.QTreeWidgetItem(self.treeWidget, ['Data Download'])
-        icon = QtGui.QIcon(settings_icon)
+        Data_icon = path +'\image\data.png' #TEST
+        icon = QtGui.QIcon(Data_icon)
         item9.setIcon(0, icon)
-        
         item = QtGui.QTreeWidgetItem(self.treeWidget, ['HDF5_Convert'])
         icon = QtGui.QIcon(settings_icon)
         item.setIcon(0, icon)
@@ -1515,7 +1534,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             # QGIS 레이어 목록을 리스트 박스에 셋팅 하기
             self.Set_Listbox()
         else:
-            self.txt_Input_data.setDisabled(False)
+#             self.txt_Input_data.setDisabled(False)
+            self.txt_Input_data.setDisabled(True)
             self.btnOpenDialog_Input.setDisabled(False)
 
 
@@ -1559,22 +1579,19 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
     def Select_CSV_event(self):
         # 기본 경로
         dir = os.path.dirname(sys.argv[0])
-        global select_file#,select_file_path
+        global select_file,select_file_path
         
         try:
             # 파일은 하나만 선택하게 함.
-#             select_file = QFileDialog.getOpenFileName(self, "Select csv file.", dir, '*.csv *.CSV',options=QtGui.QFileDialog.DontUseNativeDialog)
+            select_file = QFileDialog.getOpenFileName(self, "Select csv file.", dir, '*.csv *.CSV',options=QtGui.QFileDialog.DontUseNativeDialog)
             #기존 2017버전으로 복귀
-            select_file = QFileDialog.getOpenFileNames(self, "Select csv files.", dir, '*.csv *.CSV',options=QtGui.QFileDialog.DontUseNativeDialog)
-#             select_file_path = os.path.dirname(select_file[0])
-            
+#             select_file = QFileDialog.getOpenFileNames(self, "Select csv files.", dir, '*.csv *.CSV',options=QtGui.QFileDialog.DontUseNativeDialog)
+            select_file_path = os.path.dirname(select_file)
+            self.txt_Convert_path.setText(str(select_file))
             # 선택한 csv 파일의 폴더경로를 받음
-            self.txt_Convert_path.setText(str(os.path.dirname(select_file[0])))
-            self.list_set_csv()
-            
-            
-            
-            
+#             self.txt_Convert_path.setText(str(os.path.dirname(select_file[0])))
+#             self.list_set_csv()
+                        
         except Exception as e:
             # 파일 선택 창을 그냥 닫는 경우
             self.txt_Convert_path.setText("")
@@ -1590,85 +1607,236 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 self.lisw_Convert_file.setItem(counts, 0, QTableWidgetItem(row))
         except Exception as e:
             _util.MessageboxShowError("GPM",str(e))
-        
     
-    # CSV 파일 변환 이벤트
-    def Convert_CSV_event(self):
+    #2018-10-31
+    # 잠조할 SHP 파일 입력 받음.
+    def input_Ref_SHP(self):
+        dir = os.path.dirname(sys.argv[0])
+        try:
+            global select_SHP
+            select_SHP = QFileDialog.getOpenFileName(self, "Select Shape file", dir, '*.shp *.SHP')
+            self.txt_inputSHP.setText(str(select_SHP))
+            
+        except Exception as e:
+            self.txt_inputSHP.setText("")
+            return
+    
+    # 입력받은 SHP 파일의 QGIS MAP 좌표를 받아야 함.
+    def Ref_SHP_getcoord(self,txt):
+        try:
+            Vlayer = QgsVectorLayer(select_SHP,"SHP","ogr")
+            vlyrCRS=Vlayer.crs().authid()
+            features = Vlayer.getFeatures()
+            prov = Vlayer.dataProvider()
+            
+            global convert_crs
+            convert_crs = []
+            for raster in _ASC_filename:
+                Rlyrcrs = QgsRasterLayer(raster).crs().authid()
+                crsSrc = QgsCoordinateReferenceSystem(vlyrCRS)
+                crsDest = QgsCoordinateReferenceSystem(Rlyrcrs)
+#                 QgsMessageLog.logMessage("raster crs :  "+str(vlyrCRS)+" vector crs : "+str(Rlyrcrs),"GPM SHP")
+                xform = QgsCoordinateTransform(crsSrc, crsDest)
+                
+                for feat in features:
+                    if (txt.upper()) in  feat.attributes():
+                        geom = feat.geometry()
+                        convert_crs_coord = (xform.transform(geom.asPoint()))
+                        convert_crs.append(str(convert_crs_coord))
+                    else:
+                        pass
+#             QgsMessageLog.logMessage(str(len(convert_crs)),"GPM SHP")
+                    
+            return (convert_crs)
+                
+                        
+        except Exception as e:
+            QgsMessageLog.logMessage(str(e),"GPM SHP")
+        
+    # 변경 된 CSV 변환 이벤트로 적용 2018-10-31
+    def Convert_CSV_time(self):
         #lisw_Convert_file 리스트 초기화
         self.lisw_Convert_file.setRowCount(0)
-        opencsv = open(select_file, 'r')
-        reader_csv = csv.reader(opencsv)
-        '''
-        #5/11 참고참고::
-                    뭐랄까 코드가 이동하면서 한글이 깨지는 것 같음... 문제가 되는 부분이 있다면 좌표값으로 변환할 때 매우 크게 문제가 되고 있어용.. 전부 1,1 이렇게 되니까..
-        '''
-        # 헤더 지역 받아옴
-        headercsv = opencsv.readline().decode('cp949').encode('utf-8')
-        # 헤더 지역별로 배열생성
-        AreaName = headercsv.split(',')
-        AreaCoord = []
-        for i in AreaName[1:]:
-            print
-            #AreaCoord.append(self.coordinate_dict(i))
-            '''
-            5/21 jo :
-            #마지막 값이 1,1 로 출력되는 오류 찾음
-            #원인은 위치 마지막 키 값에 \n 이 들어 있어서 except 문을 타고 1,1로 출력된 것.
-            #해당 문제가 없도록 replace를 사용해서 해당 오류 해결하였음.
-            '''
-            AreaCoord.append(_coord.coordinate_dict(i.replace("\n","")))
-        i = 1
-        #self.CSV_filepath = []#여기에 썼더니 값은 2개 들어오는데 리스트엔 3개가 뜨는 매직..!?
-        global _CSV_filename
-        del _CSV_filename[:]
-        for row in (reader_csv):
-            #2018-10-26 이 부분에서 오작동이 있던 것인데 파일 명만 받도록 변경하였음.
-            #포맷이 주신 샘플로 고정이 되어야 함. 아니면 다시 오류 발생 가능성이 아주 높음
-            getfile = _util.GetFilename(str(row[0]))
-            # 파일 생성 코드..
-            # 위치는 선택한 csv 파일과 같은 경로에 생성됨
-            create_csv = open(select_file_path + "/{0}.csv".format(getfile), 'w+')
-            # 흠 리스트로 받아서 처리 하려 했건만 잘안됨 나중에 확인..하나씩만 들어오는..
-            self.CSV_filepath = []
-            self.CSV_filepath.append(select_file_path + "/{0}.csv".format(getfile))
-            # 2018 -06-11 기능 다시 넣음 (쪼.....)
-            counts = self.lisw_Convert_file.rowCount()
-            self.lisw_Convert_file.insertRow(counts)
-            self.lisw_Convert_file.setItem(counts, 0, QTableWidgetItem(select_file_path + "/{0}.csv".format(getfile)))
-            global _CSV_filename
-            _CSV_filename.append(select_file_path + "/{0}.csv".format(getfile))
-            
-            j = 0
-            for cols in row[i:]:
-                value = AreaCoord[j] + "," + cols + "\n"
-                j += 1
-                create_csv.write(value)
+        try:
+            opencsv = open(select_file, 'r')
+            reader_csv = csv.reader(opencsv)
+#             try:
+            headercsv = opencsv.readline().encode('utf-8')
+#             except: 
+#                 headercsv = opencsv.readline().decode('cp949').encode('utf-8') 
                 
+#             QgsMessageLog.logMessage(str(headercsv),"GPM SHP")
+            # 헤더 지역별로 배열생성
+            AreaName = headercsv.split(',')
+            
+            AreaCoord = []
+            try:
+                for name in AreaName[1:]:
+                    AreaCoord.append(self.Ref_SHP_getcoord(name.replace("\n","")))
+            except:
+                return "FIELDNAME ERROR"
+            
+#             QgsMessageLog.logMessage(str(AreaCoord),"GPM AreaCoord")
+                
+            i = 1
+            global _CSV_filename
+            del _CSV_filename[:]
+            for row in (reader_csv):
+                getfile = _util.GetFilename(str(row[0]))
+                create_csv = open(select_file_path + "/{0}.csv".format(getfile), 'w+')
+                self.CSV_filepath = []
+                self.CSV_filepath.append(select_file_path + "/{0}.csv".format(getfile))
+                
+                counts = self.lisw_Convert_file.rowCount()
+                
+                self.lisw_Convert_file.insertRow(counts)
+                self.lisw_Convert_file.setItem(counts, 0, QTableWidgetItem(select_file_path + "/{0}.csv".format(getfile)))
+                
+                global _CSV_filename
+                
+                _CSV_filename.append(select_file_path + "/{0}.csv".format(getfile))
+                
+                
+                
+                j=0
+                for cols in row[i:]:
+                    #여기서... 값이 없는 것은 제외하고 출력함
+                    if cols.strip() !="":
+                        if (AreaCoord[j]) != []:
+                            value = str(AreaCoord[j]).replace("['(","").replace(")']","") + "," + cols + "\n"
+#                         QgsMessageLog.logMessage(str(value),"GPM CSV")
+                        create_csv.write(str(value))
+                    j= j+1
+                       
+            create_csv.close()
+            opencsv.close()
+            _util.MessageboxShowInfo("Info", "Complete convert file")
+#             QgsMessageLog.logMessage(str(_CSV_filename),"GPM CSV") #OK 리스트 확인
+            # txt_Convert_path 텍스트 값 초기화
+            self.txt_Convert_path.clear()        
+                
+            
+        except Exception as e:
+            _util.MessageboxShowError("GPM CSV", str(e))
+# #             AreaCoord.append(_coord.coordinate_dict(i.replace("\n","")))
         
-        create_csv.close()
-        opencsv.close()
-        # 변환완료되었음을 알림
-        _util.MessageboxShowInfo("Info", "Complete convert file")
-        # txt_Convert_path 텍스트 값 초기화
-        self.txt_Convert_path.clear()
-    #    self.closewindow()
+    
+#     # CSV 파일 변환 이벤트 _old
+#     def Convert_CSV_event(self):
+#         #lisw_Convert_file 리스트 초기화
+#         self.lisw_Convert_file.setRowCount(0)
+#         opencsv = open(select_file, 'r')
+#         reader_csv = csv.reader(opencsv)
+#         '''
+#         #5/11 참고참고::
+#                     뭐랄까 코드가 이동하면서 한글이 깨지는 것 같음... 문제가 되는 부분이 있다면 좌표값으로 변환할 때 매우 크게 문제가 되고 있어용.. 전부 1,1 이렇게 되니까..
+#         '''
+#         # 헤더 지역 받아옴
+#         headercsv = opencsv.readline().decode('cp949').encode('utf-8')
+#         # 헤더 지역별로 배열생성
+#         AreaName = headercsv.split(',')
+#         AreaCoord = []
+#         for i in AreaName[1:]:
+#             print
+#             #AreaCoord.append(self.coordinate_dict(i))
+#             '''
+#             5/21 jo :
+#             #마지막 값이 1,1 로 출력되는 오류 찾음
+#             #원인은 위치 마지막 키 값에 \n 이 들어 있어서 except 문을 타고 1,1로 출력된 것.
+#             #해당 문제가 없도록 replace를 사용해서 해당 오류 해결하였음.
+#             '''
+#             AreaCoord.append(_coord.coordinate_dict(i.replace("\n","")))
+#         i = 1
+#         #self.CSV_filepath = []#여기에 썼더니 값은 2개 들어오는데 리스트엔 3개가 뜨는 매직..!?
+#         global _CSV_filename
+#         del _CSV_filename[:]
+#         for row in (reader_csv):
+#             #2018-10-26 이 부분에서 오작동이 있던 것인데 파일 명만 받도록 변경하였음.
+#             #포맷이 주신 샘플로 고정이 되어야 함. 아니면 다시 오류 발생 가능성이 아주 높음
+#             getfile = _util.GetFilename(str(row[0]))
+#             # 파일 생성 코드..
+#             # 위치는 선택한 csv 파일과 같은 경로에 생성됨
+#             create_csv = open(select_file_path + "/{0}.csv".format(getfile), 'w+')
+#             # 흠 리스트로 받아서 처리 하려 했건만 잘안됨 나중에 확인..하나씩만 들어오는..
+#             self.CSV_filepath = []
+#             self.CSV_filepath.append(select_file_path + "/{0}.csv".format(getfile))
+#             # 2018 -06-11 
+#             counts = self.lisw_Convert_file.rowCount()
+#             self.lisw_Convert_file.insertRow(counts)
+#             self.lisw_Convert_file.setItem(counts, 0, QTableWidgetItem(select_file_path + "/{0}.csv".format(getfile)))
+#             global _CSV_filename
+#             _CSV_filename.append(select_file_path + "/{0}.csv".format(getfile))
+#             
+#             j = 0
+#             for cols in row[i:]:
+#                 value = AreaCoord[j] + "," + cols + "\n"
+#                 j += 1
+#                 create_csv.write(value)
+#                 
+#         
+#         create_csv.close()
+#         opencsv.close()
+#         # 변환완료되었음을 알림
+#         _util.MessageboxShowInfo("Info", "Complete convert file")
+#         # txt_Convert_path 텍스트 값 초기화
+#         self.txt_Convert_path.clear()
+#     #    self.closewindow()
 
     
     #기존의 기능으로 원복(이름으로 매칭... 일단 이 방법)
     def Apply_all_correction(self):
-        if len(_ASC_filename) != len(select_file):
-            QgsMessageLog.logMessage("Number of CSV FILES and ASC FILES do not match.","GPM NOTICE")
+#         if len(_ASC_filename) != len(select_file):
+        # 위성 격자와 지상 관측 데이터의 수가 일치해야 함.
+        if len(_ASC_filename) != len(_CSV_filename):
+            _util.MessageboxShowInfo("GPM NOTICE", "Number of CSV FILES and ASC FILES do not match.")
+#             QgsMessageLog.logMessage("Number of CSV FILES and ASC FILES do not match.","GPM NOTICE")
             return
+        
+        # 보정 결과가 출력될 폴더 경로를 지정해야 함.
+        if self.txtOutputDataPath.text().strip()=="":
+            _util.MessageboxShowInfo("GPM NOTICE", " NOT set Output Path.")
+            return
+        
+        #시간 로그 측정.
+        start_time_GPM = time.time()
+        
         try:
+            self.satellite_progressBar.setValue(0)
+            self.satellite_progressBar.setMaximum(len(_ASC_filename))
             self.decimalChanged()
-            run_correction = _corr.run_correction(output_folder, _ASC_filename, select_file, _decimal)
-            for count in range(len(select_file)):
-                if self.chk_AddLayer.isChecked():
-                    self.Addlayer_OutputFile(
-                        output_folder + "\\" + (os.path.basename(_ASC_filename[count]).split(".")[0]) + "_" + (
-                            os.path.basename(select_file[count]).split(".")[0]) + ".asc")
-                count = count + 1
+#             run_correction = _corr.run_correction(output_folder, _ASC_filename, select_file, _decimal)
+#             run_correction = _corr.run_correction(output_folder, _ASC_filename, _CSV_filename, _decimal)
+            QgsMessageLog.logMessage("decimal : " + str(_decimal) + " \n" + str(_ASC_filename)+"\n"+str(_CSV_filename)+"\n"+self.txtOutputDataPath.text()+"\n","GPM APPLY ALL")
             
+            #연세대 보정 알고리즘 코드로 진입
+            run_correction = _corr.run_correction(self.txtOutputDataPath.text(), (_ASC_filename), (_CSV_filename), _decimal)
+            
+            #보정 시 측정 시간
+            QgsMessageLog.logMessage("corr 1 : "+"%s"%(time.time()-start_time_GPM),"GPM Satellite")
+            
+            #메시지 박스 외 Qgs 패널에서 확인 가능
+#             QgsMessageLog.logMessage(str(run_correction),"GPM sate")
+            
+            #보정 처리된 위성 격자에 prj 파일을 복사해옴.(위성격자 원본 데이터와 같은 좌표계)            
+            dirpath= os.path.split(_ASC_filename[0])[0]
+            self.Find_ASC_CRS(dirpath)
+#             for count in range(len(select_file)):
+            count=0
+            for count in range(len(_CSV_filename)):
+                if self.chk_AddLayer.isChecked():
+#                     QgsMessageLog.logMessage(self.txtOutputDataPath.text() + "/" + (os.path.split(os.path.splitext(_ASC_filename[count])[0])[1])+
+#                                              ("_satellite_correction.asc"),"GPM _CSVFILENAME")
+                    self.Addlayer_OutputFile(
+                        self.txtOutputDataPath.text() + "/" + (os.path.split(os.path.splitext(_ASC_filename[count])[0])[1])+("_satellite_correction.asc"))
+#                             os.path.basename(_CSV_filename[count]).split(".")[0]) + ".asc")
+#                         output_folder + "\\" + (os.path.basename(_ASC_filename[count]).split(".")[0]) + "_" + (
+#                             os.path.basename(select_file[count]).split(".")[0]) + ".asc")
+                self.satellite_progressBar.setValue(count)
+                count = count + 1
+            QgsMessageLog.logMessage("QGIS LOAD: "+"%s"%(time.time()-start_time_GPM),"GPM Satellite")
+            #prj 파일 복사 넣기
+            
+#             QgsMessageLog.logMessage(str(count),"GPM _CSV COUNT")
             #그럼 여기서 새로 리스트 만들어서 넣음..
             self.Tree_Result.clear()
             self.Tree_Result.setHeaderLabels(["Apply List"])
@@ -1676,17 +1844,62 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             for ASC in range(len(_ASC_filename)):
                 root = QtGui.QTreeWidgetItem(self.Tree_Result,[_ASC_filename[ASC]])
                 value = _ASC_filename[i]
-                SS = QtGui.QTreeWidgetItem(root,[value])
+                SS = QtGui.QTreeWidgetItem(root,[value.replace(".asc","_satellite_correction.asc")])
+                ascFileName = _util.GetFilename(value)
+#                 new_path = self.txtOutputDataPath.text()+"/"+str(ascFileName)+".png"
+#                 QgsMessageLog.logMessage(str(new_path),"GPM SATE_PNG")
+                
+                
+#                 # png 만들기
                 if self.chk_makePng.isChecked():
-                    SS = QtGui.QTreeWidgetItem(root, [value.replace("asc","png")])
-                    _PNG_filename.append(value.replace("asc","png"))
-                    png_path=value.replace("asc","png")
-                    # 이미지 생성
-                    self.make_png(_ASC_filename[ASC],png_path)
+                    new_path = self.txtOutputDataPath.text()+"/"+str(ascFileName)+"_satellite_correction.png"
+#                     QgsMessageLog.logMessage(str(new_path),"GPM SATE_PNG")
+                    SS = QtGui.QTreeWidgetItem(root,[new_path])
+                    _PNG_filename.append(new_path)
+                    png_path = new_path
+                    #이미지 생성
+                    self.make_png(_ASC_filename[ASC], png_path)
+                    
+                self.satellite_progressBar.setValue(count+i)
                 i=i+1
+            QgsMessageLog.logMessage("Make PNG : "+"%s"%(time.time()-start_time_GPM),"GPM Satellite")
+#             QgsMessageLog.logMessage(str(i),"GPM _asc COUNT")
+            
+            #기능이 모두 끝나면 메시지 알림
+            _util.MessageboxShowInfo("GPM",str(run_correction))
+            #개발자용 확인용, 배포시 제거 바람.
+#             create_filename = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_sate.txt"
+#             create_file = open(create_filename,'w+')
+#             create_file.write(run_correction)
+#             create_file.close()
+
+#                     SS = QtGui.QTreeWidgetItem(root, [value.replace("asc","png")])
+#                     _PNG_filename.append(value.replace("asc","png"))
+#                     png_path=value.replace("asc","png")
+#                     # 이미지 생성
+#                     self.make_png(_ASC_filename[ASC],png_path)
+                
 
         except Exception as es:
             QMessageBox.information(None, "error", str(es))
+    
+    #2018-11-02 신설 JO
+    #입력한 ASC의 prj 파일으르 복사해서 주려고 함.
+    def Find_ASC_CRS(self,dirpath):
+        #입력된 asc 파일의 목록을 읽고 해당 파일의 파일명과 일치하는 prj를 결과폴더로 이동
+        find_prj_list =[]
+        for (path, dir, files) in os.walk(dirpath):
+            for filename in files:
+                ext = os.path.splitext(filename)[-1]
+                if ext == '.prj':
+                    find_prj_list.append(("%s/%s" % (path, filename)))
+        
+        #얻은 거 복사
+        for prj in find_prj_list:
+            fileprj = os.path.split(prj)[1]
+            for aaa in _ASC_filename:
+                if os.path.splitext(fileprj)[0] ==os.path.split(os.path.splitext(aaa)[0])[1]:
+                    shutil.copy(prj,self.txtOutputDataPath.text()+"/"+(fileprj).replace(".prj","_satellite_correction.prj"))
         
         
         
@@ -1702,6 +1915,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         try:
             self.decimalChanged()
             run_correction = _corr.run_correction(output_folder, _ASC_filename, _CSV_filename, _decimal)
+            
             for count in range(len(_CSV_filename)):
                 if self.chk_AddLayer.isChecked():
                     self.Addlayer_OutputFile(
@@ -1760,6 +1974,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
          
          #선택 폴더가 있다면
          if output_folder !="":
+            output_folder = output_folder.replace("\\","/")
             self.txtOutputDataPath.setText(output_folder)
          #선택 폴더가 없다면
          else:
@@ -1965,14 +2180,21 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         
     def wget_create_bat(self):
         try:
-            wget.create_bat_script(self.start_date.text(),self.end_date.text(),wget_folder)
-            _util.MessageboxShowInfo("GPM", "A batch file was created on the desktop.")
+            wgetFile= wget.create_bat_script(self.start_date.text(),self.end_date.text(),wget_folder)
+#             wget.trace_file()
+            
+#             _util.MessageboxShowInfo("GPM", "A batch file was created on the desktop.")
 #             _util.MessageboxShowInfo("GPM", ("바탕화면에 GPM_data_download.bat 파일이 생성되었습니다.").decode('utf-8'))
         except Exception as e:
             _util.MessageboxShowError("GPM",str(e))
     
-
     
+    
+#     def run_wget(self):
+#         wget_path = os.path.dirname(os.path.abspath(__file__))+"/Lib/wget.exe"
+#         txt=" -r -nd -P C:/Users/MH/Desktop/GPM/v20181029_163549/ --ftp-user=jh-kim@kict.re.kr --ftp-password=jh-kim@kict.re.kr --content-on-error ftp://jsimpson.pps.eosdis.nasa.gov/data/imerg/early/201503/3B-HHR-E.MS.MRG.3IMERG.20150301-S000000-E002959.0000.V05B.RT-H5"
+#         my_call = wget_path +txt
+#         self.txt_download.setText(os.system(my_call))
     
 #===================================================20180531 추가
 #     #이미지 선택... PNG 이미지(n 개) 선택하는 창

@@ -32,7 +32,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
-import subprocess as sub
+import subprocess
 import processing
 import GPM
 import Util as util
@@ -40,7 +40,6 @@ import Dict
 import GPM
 import csv
 from PyQt4.QtGui import QFileDialog
-
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__))+'/Lib')
 import imageio
@@ -52,6 +51,7 @@ import time
 import ProgressBar
 import wget
 import transpose_Tiff as tr_Tiff
+import shlex
 
 _iface ={}
 # 2018-08-06 박: 기능 테스트로 임시 추가 
@@ -2025,7 +2025,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                  asc_path,
                  color_path,
                  png_path]
-        callvalue = sub.call(mycall,shell=True)
+        callvalue = subprocess.call(mycall,shell=True)
 #         QgsMessageLog.logMessage(str(callvalue),"GPM PNG")
 #         returnValue = _util.Execute(arg)
 #         if returnValue != 0:
@@ -2180,21 +2180,58 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         
     def wget_create_bat(self):
         try:
+#             output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.bat"
             wgetFile= wget.create_bat_script(self.start_date.text(),self.end_date.text(),wget_folder)
-#             wget.trace_file()
+#             for wget_count in (wgetFile):
+#                 stdout = sub.Popen(wget_count,stdout=sub.PIPE)
+#                 self.data_process_log.setText(str(stdout))
+#             for wget_count in range(len(wgetFile)):
+#                 self.data_process_log.setText(wgetFile[wget_count])
+#             output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.txt"
+#             outputfile = open(output,'w+')
+#             for wget_count in (wgetFile):
+#                 wget_count = wget_count.replace("\\","/")
+            stdoutput = os.popen2(wgetFile[0])
+#             stdoutput = subprocess.call(wgetFile[0],stdout=subprocess.PIPE)
+#             outputstr=process.stdout.readline()
+#             outputfile.write(stdoutput)
+            QgsMessageLog.logMessage(str(stdoutput),"GPM WGET READ")
+#                 for line in strprocess.stdout:
+#                 output= strprocess.communicate()
+
+            
+#             outputfile.close()   
+#                 stdoutput=self.run_command(wget_count)
+#                 stdoutput = sub.check_output([wget_count],stderr=sub.STDOUT)
+                
+#                 stdoutput = os.popen4(wget_count)[1].read()
+# #                 
+#                 for row in (open(output,'r').read()):
+#                     self.data_process_log.setText(row)
+#             
+#             file.close()
+#                 stdouterr = os.popen4(wget_count)[1].read()
+#                 stdouterr = sub.check_output(wget_count)
+#                 QgsMessageLog.logMessage(str(stdouterr),"GPM wget")
+#                 self.data_process_log.setText(stdouterr)
+#                 sleep(0.01)
+
             
 #             _util.MessageboxShowInfo("GPM", "A batch file was created on the desktop.")
 #             _util.MessageboxShowInfo("GPM", ("바탕화면에 GPM_data_download.bat 파일이 생성되었습니다.").decode('utf-8'))
         except Exception as e:
             _util.MessageboxShowError("GPM",str(e))
     
-    
-    
-#     def run_wget(self):
-#         wget_path = os.path.dirname(os.path.abspath(__file__))+"/Lib/wget.exe"
-#         txt=" -r -nd -P C:/Users/MH/Desktop/GPM/v20181029_163549/ --ftp-user=jh-kim@kict.re.kr --ftp-password=jh-kim@kict.re.kr --content-on-error ftp://jsimpson.pps.eosdis.nasa.gov/data/imerg/early/201503/3B-HHR-E.MS.MRG.3IMERG.20150301-S000000-E002959.0000.V05B.RT-H5"
-#         my_call = wget_path +txt
-#         self.txt_download.setText(os.system(my_call))
+#     def run_command(self,command):
+#         QgsMessageLog.logMessage(str(command),"GPM wget output")
+#         process = Popen(command,stdout=PIPE,shell=True)
+#         while True:
+#             line = process.stdout.readline()
+#             self.data_process_log.setText(str(line))
+#             if not line:
+#                 break
+#             yield line
+#         output,err = process.communicate()
     
 #===================================================20180531 추가
 #     #이미지 선택... PNG 이미지(n 개) 선택하는 창

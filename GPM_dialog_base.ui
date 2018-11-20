@@ -6,27 +6,9 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1220</width>
+    <width>1242</width>
     <height>766</height>
    </rect>
-  </property>
-  <property name="sizePolicy">
-   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-    <horstretch>0</horstretch>
-    <verstretch>0</verstretch>
-   </sizepolicy>
-  </property>
-  <property name="minimumSize">
-   <size>
-    <width>0</width>
-    <height>0</height>
-   </size>
-  </property>
-  <property name="baseSize">
-   <size>
-    <width>0</width>
-    <height>-1</height>
-   </size>
   </property>
   <property name="windowTitle">
    <string>KICT GPM</string>
@@ -37,7 +19,7 @@
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>151</width>
+      <width>180</width>
       <height>711</height>
      </rect>
     </property>
@@ -50,7 +32,7 @@
    <widget class="QTabWidget" name="tabWidget">
     <property name="geometry">
      <rect>
-      <x>170</x>
+      <x>200</x>
       <y>10</y>
       <width>1035</width>
       <height>711</height>
@@ -187,20 +169,11 @@
         <x>20</x>
         <y>170</y>
         <width>841</width>
-        <height>451</height>
+        <height>491</height>
        </rect>
       </property>
       <property name="verticalScrollBarPolicy">
        <enum>Qt::ScrollBarAlwaysOn</enum>
-      </property>
-      <property name="readOnly">
-       <bool>true</bool>
-      </property>
-      <property name="overwriteMode">
-       <bool>true</bool>
-      </property>
-      <property name="textInteractionFlags">
-       <set>Qt::NoTextInteraction</set>
       </property>
      </widget>
     </widget>
@@ -2368,7 +2341,7 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1220</width>
+     <width>1242</width>
      <height>21</height>
     </rect>
    </property>

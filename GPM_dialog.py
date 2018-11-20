@@ -547,7 +547,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 try:
                     arg = "gdal_translate.exe HDF5:"+ "\"" + str(datasouce) +"\""+"://{0}/{1} -of GTiff {2}".format(self.txt_hdf5_inPath.text(),self.txt_hdf_inName.text(),output)
 #                 arg = "gdal_translate.exe HDF5:"+ "\"" + str(datasouce) +"\""+"://{0}/{1} -of GTiff {2}/{3}".format(self.txt_hdf5_inPath.text(),self.txt_hdf_inName.text(),self.txt_Output_Convert.text(),name+"_"+self.txt_hdf_inName.text()+".tif" )
-                    QgsMessageLog.logMessage(str(arg),"GPM TIFF")
+#                     QgsMessageLog.logMessage(str(arg),"GPM TIFF")
 #                 exe=_util.Execute(arg)
                     
                     os.system(arg)
@@ -584,11 +584,11 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                     filename = _util.GetFilename(file)
 #                     output = folder+name+"_"+self.txt_hdf_inName.text()+".tif"
                     Output =  folder + filename+"_Convert.tif"
+#                     QgsMessageLog.logMessage(str(Output),"GPM HDF5")
 #                     Output = file.replace(filename, filename + "_Convert")
                     
                     #2018-11-15 numpy 사용으로 변경
                     transpose_TIFF =  _tr_Tiff.img_to_array(file,Output)
-                    QgsMessageLog.logMessage(str(transpose_TIFF),"GPM HDF5")
     #                2018-09-16 JO : 원exe2 사용
 #                     converter_exe =  os.path.dirname(os.path.abspath(__file__))+"/Lib/kict_sra_gpm_converter\KICT_SRA_GPM_Converter.exe" 
 #                     sub.call([converter_exe, file, Output],shell=True)
@@ -2191,7 +2191,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #             outputfile = open(output,'w+')
 #             for wget_count in (wgetFile):
 #                 wget_count = wget_count.replace("\\","/")
-            stdoutput = os.popen2(wgetFile[0])
+            stdoutput = os.popen2(wgetFile[0]).read()
 #             stdoutput = subprocess.call(wgetFile[0],stdout=subprocess.PIPE)
 #             outputstr=process.stdout.readline()
 #             outputfile.write(stdoutput)

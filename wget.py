@@ -75,7 +75,11 @@ def create_bat_script(start,end,folder):
     for dd in daylist:
         datefolder= dd.strftime('%Y%m')
         for i in range(len(S_file)):
-            file1="3B-HHR-E.MS.MRG.3IMERG.{0}-S{1}-E{2}.{3}.V05B.RT-H5".format(dd.strftime('%Y%m%d'),S_file[i],E_file[i],timelist[i])
+            # early 사용
+#             file1="3B-HHR-E.MS.MRG.3IMERG.{0}-S{1}-E{2}.{3}.V05B.RT-H5".format(dd.strftime('%Y%m%d'),S_file[i],E_file[i],timelist[i]) #2018-12-26 메일에서 late 사용으로 변경됨.
+            
+            #late 사용
+            file1="3B-HHR-L.MS.MRG.3IMERG.{0}-S{1}-E{2}.{3}.V05B.RT-H5".format(dd.strftime('%Y%m%d'),S_file[i],E_file[i],timelist[i])
             arg = wget_path + " -r -nd -P \"""{0}\" ".format(folder+"/"+createTime_folder)+ "--ftp-user=jh-kim@kict.re.kr --ftp-password=jh-kim@kict.re.kr --content-on-error {0}".format(url+datefolder+"/"+file1)
             file.write(arg+"\n")
 #             arg = wget_path + " -r -nd -P /{0} -A ".format("GPM_BAT")+ "\"" +file1+"\"" + " --ftp-user=jh-kim@kict.re.kr --ftp-password=jh-kim@kict.re.kr --content-on-error {0}".format(url)

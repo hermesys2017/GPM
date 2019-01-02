@@ -2,7 +2,9 @@
 '''
 Created on 2018. 10. 6.
 
-wget bat script �젣�옉
+wget bat script class
+
+change log =  2019-01-02 : ftp 경로 수정
 
 @author: MH.CHO
 '''
@@ -10,22 +12,9 @@ wget bat script �젣�옉
 import os
 from datetime import datetime,timedelta
 import getpass
-# import traceback  
-# 
-# def trace_file():
-#     output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.txt"
-#     while True:
-#         try:
-#             #check email code here
-#             print "Nothing going on here"
-#             lets_make_an_error = "error" + 1
-#         except:
-#             print "Something went wrong, lets write that to a file"
-#             errstr = traceback.format_exc()
-#             f = open(output,'a')
-#             f.write(errstr)
-#             f.close()
-#             break
+
+
+
 
 def create_bat_script(start,end,folder):
     output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.bat"
@@ -37,9 +26,11 @@ def create_bat_script(start,end,folder):
     
     ftp_user = "jh-kim@kict.re.kr"
     ftp_pass = "jh-kim@kict.re.kr"
-    ftp_path ="ftp://jsimpson.pps.eosdis.nasa.gov/data/imerg/early/"
+#     ftp_path ="ftp://jsimpson.pps.eosdis.nasa.gov/data/imerg/early/"
+    ftp_path ="ftp://jsimpson.pps.eosdis.nasa.gov/data/imerg/late/" #2018-12-26 메일에서 late 사용으로 변경됨.
 
-    url ="ftp://jsimpson.pps.eosdis.nasa.gov/data/imerg/early/"
+#     url ="ftp://jsimpson.pps.eosdis.nasa.gov/data/imerg/early/"
+    url ="ftp://jsimpson.pps.eosdis.nasa.gov/data/imerg/late/" #2018-12-26 메일에서 late 사용으로 변경됨.
     
     daylist = []
     days= datetime.strptime(end, "%Y-%m-%d").date() - datetime.strptime(start, "%Y-%m-%d").date()
@@ -80,23 +71,16 @@ def create_bat_script(start,end,folder):
     if os.path.exists(output):
         os.remove(output)
     file = open(output,'w+')
-    list = [] ; i=0 ;arg_str=[] #arg_str=""
+    list = [] ; i=0 
     for dd in daylist:
         datefolder= dd.strftime('%Y%m')
         for i in range(len(S_file)):
             file1="3B-HHR-E.MS.MRG.3IMERG.{0}-S{1}-E{2}.{3}.V05B.RT-H5".format(dd.strftime('%Y%m%d'),S_file[i],E_file[i],timelist[i])
             arg = wget_path + " -r -nd -P \"""{0}\" ".format(folder+"/"+createTime_folder)+ "--ftp-user=jh-kim@kict.re.kr --ftp-password=jh-kim@kict.re.kr --content-on-error {0}".format(url+datefolder+"/"+file1)
-#             print os.system(arg).read()
-            arg_str.append(arg)
-#             arg_str +=arg +"\n"
-            
             file.write(arg+"\n")
 #             arg = wget_path + " -r -nd -P /{0} -A ".format("GPM_BAT")+ "\"" +file1+"\"" + " --ftp-user=jh-kim@kict.re.kr --ftp-password=jh-kim@kict.re.kr --content-on-error {0}".format(url)
 #             print arg
     file.close()
     
     
-    #2018-11-14 바로 실행 테스트
-#     return output
-    return arg_str
-# create_bat_script("2014-03-12","2014-03-12","D:/Working/Gungiyeon/GPM/GPM_test/T20181115/0_data")
+# create_bat_script("2014-03-12","2014-06-11")

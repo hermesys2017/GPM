@@ -7,10 +7,10 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=GPM_developer
+name=GPM
 qgisMinimumVersion=2.0
-description=GPM_developer
-version=0.0.18
+description=GPM
+version=0.0.20
 author=Hermesys
 email=mhcho058@hermesys.co.kr
 
@@ -78,14 +78,19 @@ changelog=
 		Make CSV - message 오류 수정
 		Satellitecorrection - 플러그인 구동 확인
 		
-		
+	v0.0.19
+		CLIP - Shape FILE CLIP 추가, 사용자 지정 CLIP 추가, 사용자 clip 콤보 박스 추가 가능
+	
+	v0.0.20
+		CLIP - Shape FILE clip 기능에서 polygon type만 허용되도록 수정.
+		Make image - png 파일 배경 shape 추가
 
 # Tags are comma separated with spaces allowed
 tags=python,gpm
 
 #homepage=http://homepage
 category=Raster
-icon=icon/GPM_developer.png
+icon=icon/GPM.png
 # experimental flag
 experimental=True
 

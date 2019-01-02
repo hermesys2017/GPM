@@ -20,14 +20,13 @@
  *                                                                         *
  ***************************************************************************/
 """
-import os.path
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QAction, QIcon
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
 from GPM_dialog import GPMDialog
-
+import os.path
 
 _iface={}
 class GPM:
@@ -65,10 +64,10 @@ class GPM:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&GPM_developer')
+        self.menu = self.tr(u'&GPM')
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar(u'GPM_developer')
-        self.toolbar.setObjectName(u'GPM_developer')
+        self.toolbar = self.iface.addToolBar(u'GPM')
+        self.toolbar.setObjectName(u'GPM')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -165,10 +164,10 @@ class GPM:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/GPM/icon/GPM_developer.png'
+        icon_path = ':/plugins/GPM/icon/GPM.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'GPM_developer'),
+            text=self.tr(u'GPM'),
             callback=self.run,
             parent=self.iface.mainWindow())
 
@@ -177,7 +176,7 @@ class GPM:
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginRasterMenu(
-                self.tr(u'&GPM_developer'),
+                self.tr(u'&GPM'),
                 action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar

@@ -7,10 +7,10 @@ import os.path
 class dict:
     def __init__(self):
         self.UTM_dic = {}
-#         self.Clip_dic = {}
+        self.Clip_dic = {}
 
         self.Dic_UTM()
-#         self.Dic_Clip()
+        self.Dic_Clip()
 
     def Dic_UTM(self):
         self.UTM_dic['WGS84_UTM 1N'] ='+proj=utm +zone=1 +datum=WGS84 +units=m +no_defs'
@@ -146,34 +146,34 @@ class dict:
 #         self.UTM_dic['WGS84_UTM 52N'] = '+proj=utm +zone=52 +datum=WGS84 +units=m +no_defs'
 #         self.UTM_dic['WGS84_UTM 53N'] = '+proj=utm +zone=53 +datum=WGS84 +units=m +no_defs'
 
-#     def Dic_Clip(self):
-#         # -te xmin ymin xmax ymax:
-# 
-#         # 한반도
-#         # originalGrid.ProjToCell(123.35, 32.25, out intC1, out intR1);
-#         # originalGrid.ProjToCell(131.35, 43.65, out intC2, out intR2);
-# #         self.Clip_dic['Korea'] = '123.35 32.25 131.35 43.65' #clipper 기능을 사용할 때 보니 좌표 순서의 문제가 있음.
-#         self.Clip_dic['Korea'] = '123.35 43.65 131.35 32.25'
-# 
-#         # 남한
-#         # originalGrid.ProjToCell(124.9, 32.7, out intC1, out intR1);
-#         # originalGrid.ProjToCell(131.1, 38.9, out intC2, out intR2);
-# #         self.Clip_dic['South Korea'] = '124.9 32.7 131.1 38.9'
-#         self.Clip_dic['South_Korea'] = '124.9 38.9 131.1 32.7'
-# 
-#         # 필리핀
-#         #  originalGrid.ProjToCell(116.9, 5.0, out intC1, out intR1);
-#         #  originalGrid.ProjToCell(126.6, 19.4, out intC2, out intR2);
-# #         self.Clip_dic['Philippines'] = '116.9 5.0 126.6, 19.4'
-#         self.Clip_dic['Philippines'] = '116.9 19.4 126.6 5.0'
-# 
-#         # 모르코
-#         # originalGrid.ProjToCell(-13.0, 27.0, out intC1, out intR1);
-#         # originalGrid.ProjToCell(-1.0, 36.0, out intC2, out intR2);
-# #         self.Clip_dic['Morocco'] = '-13.0 27.0 -1.0 36.0'
-#         self.Clip_dic['Morocco'] = '-13.0 36.0 -1.0 27.0' 
-#         
-#         #koreatypoon
-#         self.Clip_dic['Korea_Typoon'] = '90 46 140 5'
+    def Dic_Clip(self):
+        # -te xmin ymin xmax ymax:
+
+        # 한반도
+        # originalGrid.ProjToCell(123.35, 32.25, out intC1, out intR1);
+        # originalGrid.ProjToCell(131.35, 43.65, out intC2, out intR2);
+#         self.Clip_dic['Korea'] = '123.35 32.25 131.35 43.65' #clipper 기능을 사용할 때 보니 좌표 순서의 문제가 있음.
+        self.Clip_dic['Korea'] = '123.35 43.65 131.35 32.25'
+
+        # 남한
+        # originalGrid.ProjToCell(124.9, 32.7, out intC1, out intR1);
+        # originalGrid.ProjToCell(131.1, 38.9, out intC2, out intR2);
+#         self.Clip_dic['South Korea'] = '124.9 32.7 131.1 38.9'
+        self.Clip_dic['South_Korea'] = '124.9 38.9 131.1 32.7'
+
+        # 필리핀
+        #  originalGrid.ProjToCell(116.9, 5.0, out intC1, out intR1);
+        #  originalGrid.ProjToCell(126.6, 19.4, out intC2, out intR2);
+#         self.Clip_dic['Philippines'] = '116.9 5.0 126.6, 19.4'
+        self.Clip_dic['Philippines'] = '116.9 19.4 126.6, 5.0'
+
+        # 모르코
+        # originalGrid.ProjToCell(-13.0, 27.0, out intC1, out intR1);
+        # originalGrid.ProjToCell(-1.0, 36.0, out intC2, out intR2);
+#         self.Clip_dic['Morocco'] = '-13.0 27.0 -1.0 36.0'
+        self.Clip_dic['Morocco'] = '-13.0 36.0 -1.0 27.0' 
+        
+        #koreatypoon
+        self.Clip_dic['Korea_Typoon'] = '90 46 140 5'
         
         

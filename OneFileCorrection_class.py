@@ -107,19 +107,6 @@ class satellite_correction():
                 ErrOneMsg= ErrOneMsg + strErrmsg+" / "
             return False
     
-    
-    
-    #여기서 이제 body 안 찾아..
-#     # asc body를 2차원 배열로 만드는 함수
-#     def ASC_Body_2grid(self,asc_file):
-#         global ErrOneMsg #오류 메시지를 모음
-#         #header = self.Load_ASC_Header(asc_file)[1]
-#         #header = self.index_heder#헤더 크기
-#         #헤더는 무조건 nodata까지 있다고 가정
-#         #bodyItems = numpy.loadtxt(asc_file,skiprows=len(6))
-#         
-#         #뭐가 문제일까.. 출력은 될건데..
-#         #return bodyItems
         
     # 모든 함수를 처리하는 main 함수
     def run_correction(self,save_path,asc_file_list,groundFile_list,_decimal):
@@ -913,9 +900,9 @@ class satellite_correction():
             g_final_dist=[[0 for x in range(_header.ncols)] for y in range(_header.nrows)]
                 
         #     for i in range(ncolsrows[1]):
-            for distance_km in range(0,300):
+            for distance_km in range(0,100):
                 g_distance_km = distance_km
-#                 print "g_distance_km : ",g_distance_km
+                print ("g_distance_km : ",g_distance_km)
 #                 create_file.write("\ng_distance_km : " +str(g_distance_km))
 #                 create_file.write("\ntime : " +"%s"%(time.time()-start_time))
                 
@@ -1039,11 +1026,11 @@ class satellite_correction():
             return errmsg
         
      
-# sate = satellite_correction()
-#    
-# save_path="D:/Working/Gungiyeon/GPM/GPM_test/T20181106/9_satellite_correction/50km/console"
-# asc_file_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prj_asc/resampling/50km/3B-HHR-L.MS.MRG.3IMERG.20180515-S153000-E155959.0930.V05B.RT-H5_pCal.asc"]
-# groundFile_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prof_sample/2018-05-16001200000AM.csv"]
-# _decimal=2
-#    
-# sate.run_correction(save_path, asc_file_list, groundFile_list, _decimal)
+sate = satellite_correction()
+    
+save_path="D:/Working/Gungiyeon/GPM/GPM_test/T20181126/satellite_correction_plugin"
+asc_file_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prj_asc/resampling/50km/3B-HHR-L.MS.MRG.3IMERG.20180515-S153000-E155959.0930.V05B.RT-H5_pCal.asc"]
+groundFile_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prof_sample/2018-05-16001200000AM.csv"]
+_decimal=2
+    
+sate.run_correction(save_path, asc_file_list, groundFile_list, _decimal)

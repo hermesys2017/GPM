@@ -7,14 +7,14 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=GPM
+name=GPM_developer
 qgisMinimumVersion=2.0
-description=GPM
-version=0.0.20
+description=GPM_developer
+version=0.0.1.21
 author=Hermesys
 email=mhcho058@hermesys.co.kr
 
-about=GPM
+about=GPM, 개발자용, 배포된 플러그인과 차이가 있음. 반영된 것이 있고, 안 된 것이 있으므로 구분바람.
 
 #tracker=http://bugs
 repository=https://github.com/floodmodel/GPM/releases
@@ -84,13 +84,18 @@ changelog=
 	v0.0.20
 		CLIP - Shape FILE clip 기능에서 polygon type만 허용되도록 수정.
 		Make image - png 파일 배경 shape 추가
+		
+	v0.0.21
+		Data Download - early --> late 사용으로 ftp 경로 수정
+		
+		
 
 # Tags are comma separated with spaces allowed
 tags=python,gpm
 
 #homepage=http://homepage
 category=Raster
-icon=icon/GPM.png
+icon=icon/GPM_developer.png
 # experimental flag
 experimental=True
 

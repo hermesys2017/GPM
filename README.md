@@ -6,5 +6,5 @@
 #### 일부 실험적인 코드도 섞여있음.
 
 
-#### v0.0.18 이후의 delveloper 버전임. transpose_tiff 를 추가함. 아직 완전 작동이 되지 않음. QGIS 콘솔에서만 확인함.
+#### v0.0.21 이후의 delveloper 버전임. transpose_tiff 를 추가함. 아직 완전 작동이 되지 않음. QGIS 콘솔에서만 확인함.
 

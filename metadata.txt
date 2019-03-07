@@ -95,7 +95,7 @@ tags=python,gpm
 
 #homepage=http://homepage
 category=Raster
-icon=icon/GPM_developer.png
+icon=icon/GPM_develop_logo.png
 # experimental flag
 experimental=True
 

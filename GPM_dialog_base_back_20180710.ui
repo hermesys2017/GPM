@@ -47,7 +47,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>HDF5 내부 path[/없이 기임]:</string>
+      <string>HDF5 �궡遺� path[/�뾾�씠 湲곗엫]:</string>
      </property>
     </widget>
     <widget class="QLabel" name="label_2">
@@ -60,7 +60,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>HDF5 내부 Name:</string>
+      <string>HDF5 �궡遺� Name:</string>
      </property>
     </widget>
     <widget class="QLabel" name="label_3">
@@ -180,12 +180,12 @@
      </attribute>
      <column>
       <property name="text">
-       <string>순번</string>
+       <string>�닚踰�</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>파일 목록</string>
+       <string>�뙆�씪 紐⑸줉</string>
       </property>
      </column>
     </widget>

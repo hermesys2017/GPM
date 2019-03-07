@@ -59,7 +59,7 @@ class accum_util():
 #                 call_arg =[osgeo4w,run_saga]
 #             os.system(run_saga,shell=True)
                 
-                subprocess.call(run_saga,shell=True)
+                subprocess.call(run_saga)
 
 #                 subprocess.call(run_saga, shell=True) #나중에 shell=True 사용해서 cmd 안뜨게 함/
                 sleep(0.5)

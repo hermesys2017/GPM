@@ -37,8 +37,8 @@
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>166</width>
-      <height>551</height>
+      <width>151</width>
+      <height>711</height>
      </rect>
     </property>
     <column>
@@ -50,9 +50,9 @@
    <widget class="QTabWidget" name="tabWidget">
     <property name="geometry">
      <rect>
-      <x>184</x>
+      <x>170</x>
       <y>10</y>
-      <width>1021</width>
+      <width>1035</width>
       <height>711</height>
      </rect>
     </property>
@@ -249,19 +249,6 @@
        </rect>
       </property>
      </widget>
-     <zorder>label_3</zorder>
-     <zorder>end_date</zorder>
-     <zorder>btn_datadownload</zorder>
-     <zorder>label_4</zorder>
-     <zorder>label_18</zorder>
-     <zorder>txt_bat_path</zorder>
-     <zorder>btn_bat_path</zorder>
-     <zorder>data_process_log</zorder>
-     <zorder>label_43</zorder>
-     <zorder>label_44</zorder>
-     <zorder>txt_userID</zorder>
-     <zorder>txt_userPW</zorder>
-     <zorder>start_date</zorder>
     </widget>
     <widget class="QWidget" name="tab_8">
      <attribute name="title">
@@ -834,6 +821,36 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </rect>
       </property>
      </widget>
+     <zorder>groupBox</zorder>
+     <zorder>btn_apply_clip</zorder>
+     <zorder>tb_clip_Tiff</zorder>
+     <zorder>txt_Clip_EX</zorder>
+     <zorder>clip_progressBar</zorder>
+     <zorder>btn_input_tiff</zorder>
+     <zorder>clip_1_y</zorder>
+     <zorder>btn_shape_dialog</zorder>
+     <zorder>label_9</zorder>
+     <zorder>label_39</zorder>
+     <zorder>label_34</zorder>
+     <zorder>label_37</zorder>
+     <zorder>cmb_clip_zone</zorder>
+     <zorder>label_35</zorder>
+     <zorder>label_32</zorder>
+     <zorder>label_33</zorder>
+     <zorder>clip_2_y</zorder>
+     <zorder>rdo_user_clip</zorder>
+     <zorder>rdo_Combo_Clip</zorder>
+     <zorder>txt_output_clip</zorder>
+     <zorder>btn_Output_Folder</zorder>
+     <zorder>rdo_Shape_Clip</zorder>
+     <zorder>clip_2_x</zorder>
+     <zorder>txt_Shape_path</zorder>
+     <zorder>clip_1_x</zorder>
+     <zorder>label_36</zorder>
+     <zorder>label_38</zorder>
+     <zorder>label_9</zorder>
+     <zorder>btn_Output_Folder</zorder>
+     <zorder>txt_output_clip</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
@@ -2492,7 +2509,7 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
         </rect>
        </property>
        <property name="text">
-        <string>polygon(하천유역도) :</string>
+        <string>polygon(유역도) :</string>
        </property>
       </widget>
       <widget class="QLineEdit" name="txt_pngshp_polygon">
@@ -2531,7 +2548,7 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
         </rect>
        </property>
        <property name="text">
-        <string>Line(하천망) :</string>
+        <string>Line(하천망도) :</string>
        </property>
       </widget>
       <widget class="QPushButton" name="btn_pngshp_line">
@@ -2602,7 +2619,7 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
         </rect>
        </property>
        <property name="text">
-        <string>Point(관측소) :</string>
+        <string>Point(관측소 위치) :</string>
        </property>
       </widget>
      </widget>
@@ -2722,22 +2739,8 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
      </widget>
     </widget>
    </widget>
-   <widget class="QLabel" name="kict_logo">
-    <property name="geometry">
-     <rect>
-      <x>5</x>
-      <y>570</y>
-      <width>186</width>
-      <height>141</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
    <zorder>tabWidget</zorder>
    <zorder>treeWidget</zorder>
-   <zorder>kict_logo</zorder>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">

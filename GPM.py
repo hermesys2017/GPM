@@ -165,7 +165,7 @@ class GPM:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/GPM/icon/GPM_developer.png'
+        icon_path = ':/plugins/GPM/icon/GPM_develop_logo.png'
         self.add_action(
             icon_path,
             text=self.tr(u'GPM_developer'),

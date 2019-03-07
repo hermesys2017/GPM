@@ -32,7 +32,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
-import subprocess
+import subprocess as sub
 import processing
 import GPM
 import Util as util
@@ -61,6 +61,7 @@ _iface ={}
 import qgis
 from qgis.analysis import QgsRasterCalculatorEntry, QgsRasterCalculator
 from PyQt4.QtGui import QProgressDialog, QProgressBar
+from osgeo import *
 #from Scripts.gdal_calc import Calc
 
 import PIL
@@ -648,7 +649,11 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                     #transpose_TIFF =  _tr_Tiff.img_to_array(file,Output)
     #                2018-09-16 JO : 원exe2 사용
                     converter_exe =  os.path.dirname(os.path.abspath(__file__))+"/Lib/kict_sra_gpm_converter\KICT_SRA_GPM_Converter.exe" 
-                    sub.call([converter_exe, file, Output],shell=True)
+                    call_convert=sub.call([converter_exe, file, Output],shell=True)
+                    #정상적으로 수행이 된 경우 0, 이 경우 파일을 삭제
+                    if call_convert == 0 :
+                        os.remove(file)
+                    
                     #2018-10-17 : JO - output 파일이 실존하면 리스트에 추가되도록 수정함. 
                     try:
                         if (os.path.exists(Output)) == True:
@@ -666,6 +671,9 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             except Exception as e:
                 _util.MessageboxShowInfo("GPM",str(e))
             
+            if call_convert == 0 :
+                    #step1 폴더 삭제...
+                os.rmdir(os.path.dirname(file))
 #             self.calc((len(self.hdf_convert_tiff)*1000), (len(self.hdf_convert_tiff)*2000))
 #             self.calc(len(self.hdf_convert_tiff)*5)
             #clip 준비... 2018-10-15 신설
@@ -734,13 +742,72 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 _util.MessageboxShowInfo("GPM", "The folder path is not set.")
                 self.txt_output_clip.setFocus()
                 return
-
+            
+            if self.rdo_Combo_Clip.isChecked():
+                self.cmb_clip_zone_apply()
+#                 self.txt_output_clip.clear() #경로 초기화....
+                            
+            elif self.rdo_Shape_Clip.isChecked():
+                self.Shape_Clip_apply()
+#                 self.txt_output_clip.clear() #경로 초기화....
+            
+            elif self.rdo_user_clip.isChecked():
+                self.user_Clip_apply()
+            
+            
+            
             # 분리된 Tif 유역으로 자르기
             # gdalwarp -te -122.4267 37.7492 -122.4029 37.769 sf_4269.tif sf_4269-clippedByCoords.tif
+#             area =self.cmb_clip_zone.currentText()
+#             Clip_area=_Dict.Clip_dic[area]
+            
+            
+#             for tif in (self.hdf_convert_tiff):
+#             if len(self.tb_clip_Tiff.selectedIndexes()) > 0: 
+#                 #선택된 레이어에만 적용되도록...
+#                 clip_pro_count=0;self.clip_progressBar.setMaximum(len(self.tb_clip_Tiff.selectedIndexes()))
+#                 if os.path.exists(self.txt_output_clip.text()+"/"+str(area)+"/") == False:
+#                     folder = os.mkdir(self.txt_output_clip.text()+"/"+str(area)+"/")
+#                 
+#                 for idx in self.tb_clip_Tiff.selectedIndexes():
+#                     #HDF5 수행 후 바로라면.
+#                     if (self.hdf_convert_tiff != []):
+#                         tif = self.hdf_convert_tiff[idx.row()]
+#                         filename = _util.GetFilename(tif)
+#                         
+#                         Input = tif.replace(filename,filename+"_Convert")
+#                         Output = self.txt_output_clip.text()+"/"+str(area)+"/"+ filename + "_Clip.tif"
+#         # # #                 arg = "\"" + "C:/Program Files/GDAL/gdalwarp.exe" + "\""
+#         # # #                 arg = arg + " -te " + Clip_area + " \"" + Input + "\" " + "\"" + Output + "\" "
+#         # #                 # 좌표계 EPSG:4326 을 여기서 assign 해줌
+#                         try:
+#                             #우선 이 방식으로..
+# #                             osgeo4w="\"""C:/Program Files/QGIS 2.18/OSGeo4W.bat""\""
+#                             arg = "gdal_translate.exe -a_srs epsg:4326 -projwin  " +Clip_area + " -of GTiff "  +tif+ " " + Output
+#                             QgsMessageLog.logMessage(str(arg),"GPM CLIP")
+# #                             QgsMessageLog.logMessage(osgeo4w+" "+str(arg),"GPM CLIP")
+#         # #                 self.txt_output_clip.setText(arg)
+#         # #                 os.system(arg)
+# #                             sub.call(arg,shell=True)
+# #                             os.system(osgeo4w+" "+arg)
+#                             os.system(arg)
+#                             clip_pro_count =clip_pro_count+1
+#                             sleep(1)
+#                             self.clip_progressBar.setValue(clip_pro_count)
+#                         except Exception as e:
+#                             QgsMessageLog.logMessage(str(e),"GPM CLIP")
+#                 
+#             else:
+#                 _util.MessageboxShowInfo("GPM","Not Selected Files.")
+        except Exception as e:
+            _util.MessageboxShowInfo("GPM", str(e))
+    # ===== 여기가 combo area 선택 함수 생성
+    def cmb_clip_zone_apply(self):
+        # 분리된 Tif 유역으로 자르기
+            # gdalwarp -te -122.4267 37.7492 -122.4029 37.769 sf_4269.tif sf_4269-clippedByCoords.tif
             area =self.cmb_clip_zone.currentText()
-            Clip_area=_Dict.Clip_dic[area]
-            
-            
+#             Clip_area=_Dict.Clip_dic[area]
+            Clip_area = _Dict_clip.Clip_dic[area]
 #             for tif in (self.hdf_convert_tiff):
             if len(self.tb_clip_Tiff.selectedIndexes()) > 0: 
                 #선택된 레이어에만 적용되도록...
@@ -753,34 +820,195 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                     if (self.hdf_convert_tiff != []):
                         tif = self.hdf_convert_tiff[idx.row()]
                         filename = _util.GetFilename(tif)
-                        
                         Input = tif.replace(filename,filename+"_Convert")
+                    
                         Output = self.txt_output_clip.text()+"/"+str(area)+"/"+ filename + "_Clip.tif"
-        # # #                 arg = "\"" + "C:/Program Files/GDAL/gdalwarp.exe" + "\""
-        # # #                 arg = arg + " -te " + Clip_area + " \"" + Input + "\" " + "\"" + Output + "\" "
-        # #                 # 좌표계 EPSG:4326 을 여기서 assign 해줌
                         try:
-                            #우선 이 방식으로..
-#                             osgeo4w="\"""C:/Program Files/QGIS 2.18/OSGeo4W.bat""\""
                             arg = "gdal_translate.exe -a_srs epsg:4326 -projwin  " +Clip_area + " -of GTiff "  +tif+ " " + Output
-                            QgsMessageLog.logMessage(str(arg),"GPM CLIP")
-#                             QgsMessageLog.logMessage(osgeo4w+" "+str(arg),"GPM CLIP")
-        # #                 self.txt_output_clip.setText(arg)
-        # #                 os.system(arg)
-#                             sub.call(arg,shell=True)
-#                             os.system(osgeo4w+" "+arg)
-                            os.system(arg)
+#                             QgsMessageLog.logMessage(str(arg),"GPM CLIP")
+#                             os.system(arg)
+#                             arg =[
+#                                 osgeo4w,
+#                                 "gdal_translate.exe","-a_srs","EPSG:4326",
+#                                 "-projwin",Clip_area,"-of","GTiff",tif,Output
+#                                 ]
+                            sub.call(arg,shell=True) #2019-02-25, 전면수정
+                            
                             clip_pro_count =clip_pro_count+1
                             sleep(1)
                             self.clip_progressBar.setValue(clip_pro_count)
+                            
                         except Exception as e:
                             QgsMessageLog.logMessage(str(e),"GPM CLIP")
-                
             else:
                 _util.MessageboxShowInfo("GPM","Not Selected Files.")
-        except Exception as e:
-            _util.MessageboxShowInfo("GPM", str(e))
+                return
     
+    # ===== 여기는 shape area 선택 함수로 생성...
+    def Shape_Clip_apply(self):
+#         _util.MessageboxShowInfo("GPM CLIP",str(self.txt_Shape_path.text()))
+        if len(self.tb_clip_Tiff.selectedIndexes()) > 0: 
+            clip_pro_count=0;self.clip_progressBar.setMaximum(len(self.tb_clip_Tiff.selectedIndexes()))
+            
+#             folder = (self.txt_output_clip.text()+"/"+str(os.path.basename(self.txt_Shape_path.text()))+"/").replace("\\","/")
+            folder = (self.txt_output_clip.text()+"/shp/").replace("\\","/")
+            if os.path.exists(folder) == False:
+                    os.mkdir(folder)
+            
+            #여기서 shp의 geometry type은 반드시 폴리곤이여야 합니다 (와카리마스... by.기린)
+            vector_polygon = QgsVectorLayer(self.txt_Shape_path.text(),"shp","ogr")
+            vector_polygon.wkbType() == QGis.WKBPolygon
+            if (vector_polygon.wkbType() != QGis.WKBPolygon):
+                _util.MessageboxShowError("GPM", "Check out the geometry type(polygon) in the shapefile.")
+                return
+             #polygon이 아니면 메시지로 사용자에게 알립니다.٩(ˊᗜˋ*)و
+#             else:
+#                 _util.MessageboxShowError("GPM", "Check out the geometry type in the shapefile.")
+#                 return
+            
+            
+            for idx in self.tb_clip_Tiff.selectedIndexes():
+                    #HDF5 수행 후 바로라면.
+                    if (self.hdf_convert_tiff != []):
+                        tif = self.hdf_convert_tiff[idx.row()]
+                        filename = _util.GetFilename(tif)
+                        
+                        Input = tif.replace(filename,filename+"_Convert")
+                        Input_layer=gdal.Open(tif)
+#                         QgsMessageLog.logMessage(str(Input_layer),"GPM SHP CLIP")
+                        clipWidth = (Input_layer.GetGeoTransform()[1])
+                        clipHeight = -(Input_layer.GetGeoTransform()[5])
+                        Output = folder+ filename + "_Clip.tif"
+                        try:
+            #                             arg = "gdal_translate.exe -a_srs epsg:4326 -projwin  " +Clip_area + " -of GTiff "  +tif+ " " + Output
+                            tif = tif.replace("\\","/")
+        #                             arg = "gdalwarp.exe -ot Float32 -q  -of GTiff -tr {0} {1} -tap -cutline ".format(clipWidth,clipHeight)+str(self.txt_Shape_path.text())+" -crop_to_cutline -co COMPRESS=DEFLATE -co PREDICTOR=1 -co ZLEVEL=6 -wo OPTIMIZE_SIZE=TRUE  {0} {1}".format(tif, Output)
+#                             arg = "gdalwarp.exe -s_srs EPSG:4326 -q -cutline {0} -crop_to_cutline -tr {1} {2} -of GTiff {3} {4}".format(
+#                                 str(self.txt_Shape_path.text()),clipWidth,clipHeight,tif,Output)
+                            
+                            #여기 분기가 필요하겠음...prj가 있는 shp는 문제가 없는데
+                            #prj가 있는 shp는 문제가 있네
+                            
+#                             -t_srs EPSG:4326 -tr {1} {2}
+                            arg = "gdalwarp.exe -s_srs EPSG:4326 -t_srs EPSG:4326 -q -cutline {0} -crop_to_cutline -tr {1} {2} -dstalpha -of GTiff {3} {4}".format(
+                                "\""+str(self.txt_Shape_path.text())+"\"",str(clipWidth),str(clipHeight),tif,Output)
+#                             clip_call = [osgeo4w,
+#                                          "gdalwarp.exe","-q","-cutline",str(self.txt_Shape_path.text()),
+#                                          "-crop_to_cutline",
+#                                          "-tr",str(clipWidth),str(clipHeight),"-of","GTiff",tif,Output]
+#                             arg = [osgeo4w,"gdalwarp.exe",
+#                                          "-s_srs","EPSG:4326",
+#                                          "-q","-cutline",str(self.txt_Shape_path.text()),
+#                                          "-crop_to_cutline","-tr",str(clipWidth),str(clipHeight),"-dstalpha","-of","GTiff",tif,Output]
+#                             QgsMessageLog.logMessage(str(arg),"GPM CLIP")
+                            sub.call(arg,shell=True) #2019-02-25 전면 교체
+#                             QgsMessageLog.logMessage(str(callvalue),"GPM CLIP")
+#                             os.system(arg)
+                            clip_pro_count =clip_pro_count+1
+                            sleep(1)
+                            self.clip_progressBar.setValue(clip_pro_count)
+                            
+                        except Exception as e:
+                            QgsMessageLog.logMessage(str(e),"GPM CLIP")
+        
+        else:
+            #파일 선택하라니까...
+            _util.MessageboxShowInfo("GPM","Not Selected Files.")
+            return
+    
+    # ==== 사용자 직접area 입력
+    #숫자인지 여부도 판단.. 숫자만 받아요. 감사
+    def isNumber(self,s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
+        
+    def user_clip_zone(self):
+    #만약 1.x,y 2.x,y 텍스트 박스가 빈칸이면 return
+        self.clip_x1 = str(self.clip_1_x.text()); self.clip_y1 = str(self.clip_1_y.text())
+        self.clip_x2 = str(self.clip_2_x.text()); self.clip_y2 = str(self.clip_2_y.text())
+         #빈칸이면 안돼
+        if self.clip_x1.strip()=="":
+            _util.MessageboxShowInfo("GPM", "The clip zone is not set.")
+            self.clip_1_x.setFocus()
+            return
+        if self.clip_y1.strip()=="":
+            _util.MessageboxShowInfo("GPM", "The clip zone is not set.")
+            self.clip_1_y.setFocus()
+            return
+        if self.clip_x2.strip()=="":
+            _util.MessageboxShowInfo("GPM", "The clip zone is not set.")
+            self.clip_2_x.setFocus()
+            return
+        if self.clip_y2.strip()=="":
+            _util.MessageboxShowInfo("GPM", "The clip zone is not set.")
+            self.clip_2_y.setFocus()
+            return
+        
+        #숫자인지 여부도 판단.. 숫자만 받아요. 감사
+        if self.isNumber(self.clip_x1) == False:
+            _util.MessageboxShowInfo("GPM", "Input number")
+            self.clip_1_x.setFocus()
+            return
+        if self.isNumber(self.clip_x2) == False:
+            _util.MessageboxShowInfo("GPM", "Input number")
+            self.clip_2_x.setFocus()
+            return
+        if self.isNumber(self.clip_y1) == False:
+            _util.MessageboxShowInfo("GPM", "Input number")
+            self.clip_1_y.setFocus()
+            return
+        if self.isNumber(self.clip_y2) == False:
+            _util.MessageboxShowInfo("GPM", "Input number")
+            self.clip_2_y.setFocus()
+            return    
+            
+    def user_Clip_apply(self):
+        self.user_clip_zone()
+        
+        Clip_area = "{0} {1} {2} {3}".format(str(self.clip_x1),str(self.clip_y2),str(self.clip_x2),str(self.clip_y1))
+        
+        if len(self.tb_clip_Tiff.selectedIndexes()) > 0: 
+            clip_pro_count=0;self.clip_progressBar.setMaximum(len(self.tb_clip_Tiff.selectedIndexes()))
+             
+#             folder = (self.txt_output_clip.text()+"/"+str(os.path.basename(self.txt_Shape_path.text()))+"/").replace("\\","/")
+            folder = (self.txt_output_clip.text()+"/User_CLIP/").replace("\\","/") #폴더명 임의 지정
+            if os.path.exists(folder) == False:
+                    os.mkdir(folder)
+#             
+            for idx in self.tb_clip_Tiff.selectedIndexes():
+                    #HDF5 수행 후 바로라면.
+                    if (self.hdf_convert_tiff != []):
+                        tif = self.hdf_convert_tiff[idx.row()]
+                        filename = _util.GetFilename(tif)
+#                         
+                        Input = tif.replace(filename,filename+"_Convert")
+                        Output = folder+ filename + "_Clip.tif"
+                        try:
+#                             arg = "gdal_translate.exe -a_srs epsg:4326 -projwin  " +Clip_area + " -of GTiff "  +tif+ " " + Output
+                            tif = tif.replace("\\","/")
+                            arg = "gdal_translate.exe -a_srs EPSG:4326 -projwin  " +Clip_area + " -of GTiff "  +tif+ " " + Output
+#                             arg = [
+#                                 osgeo4w, "gdal_translate.exe",
+#                                "-a_srs","EPSG:4326","-projwin",
+#                                Clip_area,"-of","GTiff",tif,Output             
+#                                 ]
+                            sub.call(arg, shell=True) #2019-02-25, 전면교체
+#                             QgsMessageLog.logMessage(str(arg),"GPM CLIP")
+#                             os.system(arg)
+                            clip_pro_count =clip_pro_count+1
+                            sleep(1)
+                            self.clip_progressBar.setValue(clip_pro_count)
+                             
+                        except Exception as e:
+                            QgsMessageLog.logMessage(str(e),"GPM CLIP")
+        
+        else:
+            #선택 !@ ㅅ선택하세요!!! 꼮!!!!
+            _util.MessageboxShowInfo("GPM","Not Selected Files.")
+            return    
     
 #     def clip_list(self, list):
 #         list
@@ -1583,6 +1811,11 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         #btn_Apply 버튼의 아이콘 넣기
         btn_apply_icon = os.path.dirname(os.path.abspath(__file__))+"/icon/bottom_arrow.png"
         self.btn_Apply.setIcon(QtGui.QIcon(btn_apply_icon))
+        
+        #kict_logo 박아넣음.
+        kict_logo = os.path.dirname(os.path.abspath(__file__))+"/icon/GPM_developer_small.png"
+#         self.kict_logo.setIcon(QtGui.QIcon(kict_logo))
+        self.kict_logo.setPixmap( QtGui.QPixmap( kict_logo ) )
 
     # 레이어 목록 혹은 파일 목록사용여부 라디오버튼
     def Select_radio_event(self):
@@ -2214,53 +2447,60 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
      
     #원래는 따로 분리했었는데...  기회가 되면 다시 분리할 것
     def savePng_base(self,canvas,raster,polygon,line,point, saveName):
-        width = 800
-        height = 600
-         
-        dpi = 92
-        img = QImage(QSize(width,height),QImage.Format_RGB32)
-        img.setDotsPerMeterX(dpi/25.4*1000)
-        img.setDotsPerMeterY(dpi/25.4*1000)
-         
-        r_lyr = QgsRasterLayer(raster,((os.path.basename(raster)).split(".png")[0]),"gdal")
+        try:
+            #이 부분은 이미지 사이즈임... 나중에 래스터와 동일한 사이즈로 만들어주세요! 라고 하면 그 때 래스터 사이즈 get 하는 거 알아내서 하도록...
+            #조금 귀찮아서..
+            width = 800
+            height = 600
+             
+            dpi = 92
+            img = QImage(QSize(width,height),QImage.Format_RGB32)
+            img.setDotsPerMeterX(dpi/25.4*1000)
+            img.setDotsPerMeterY(dpi/25.4*1000)
+             
+            r_lyr = QgsRasterLayer(raster,((os.path.basename(raster)).split(".png")[0]),"gdal")
+            
+            baseLayer_polygon = QgsVectorLayer(polygon,(os.path.basename(polygon)).split(".shp")[0],"ogr")
+            baseLayer_line = QgsVectorLayer(line,(os.path.basename(line)).split(".shp")[0],"ogr")
+            baseLayer_point = QgsVectorLayer(point,(os.path.basename(point)).split(".shp")[0],"ogr")
+            
+            QgsMapLayerRegistry.instance().addMapLayers([r_lyr,baseLayer_polygon,baseLayer_line,baseLayer_point], False)
+    #         QgsMapLayerRegistry.instance().addMapLayers([r_lyr,baseLayer], False)
+    #         QgsMapLayerRegistry.instance().addMapLayers([baseLayer,r_lyr], False)
+    #         Canvas_Tools(self.gpm_canvas)
+            self.gpm_canvas.zoomToFullExtent()
+            self.gpm_canvas.refresh()
+             
+    #         list_layer = [r_lyr,baseLayer_polygon,baseLayer_line,baseLayer_point]#base layer가 아래에
+            list_layer = [baseLayer_line,baseLayer_point,baseLayer_polygon,r_lyr]#base layer가 위에
+            layers = [layer.id() for layer in list_layer]
+             
+            extent = canvas.extent()
+              
+            mapSettings = QgsMapSettings()
+            mapSettings.setMapUnits(0)
+            mapSettings.setExtent(extent)
+            mapSettings.setOutputDpi(dpi)
+            mapSettings.setOutputSize(QSize(width,height))
+            mapSettings.setLayers(layers)
+            mapSettings.setFlags(QgsMapSettings.Antialiasing|QgsMapSettings.UseAdvancedEffects
+                                 |QgsMapSettings.ForceVectorOutput| QgsMapSettings.DrawLabeling)
+              
+            p = QPainter()
+            p.begin(img)
+            mapRender =  QgsMapRendererCustomPainterJob(mapSettings, p)
+            mapRender.start()
+            mapRender.waitForFinished()
+            p.end()
+              
+    #         saveName = "D:/Working/Gungiyeon/GPM/GPM_test/T20181213/test.png"
+            img.save(saveName,'png')
+            QgsMapLayerRegistry.instance().removeMapLayers(layers)
         
-        baseLayer_polygon = QgsVectorLayer(polygon,(os.path.basename(polygon)).split(".shp")[0],"ogr")
-        baseLayer_line = QgsVectorLayer(line,(os.path.basename(line)).split(".shp")[0],"ogr")
-        baseLayer_point = QgsVectorLayer(point,(os.path.basename(point)).split(".shp")[0],"ogr")
-        
-        QgsMapLayerRegistry.instance().addMapLayers([r_lyr,baseLayer_polygon,baseLayer_line,baseLayer_point], False)
-#         QgsMapLayerRegistry.instance().addMapLayers([r_lyr,baseLayer], False)
-#         QgsMapLayerRegistry.instance().addMapLayers([baseLayer,r_lyr], False)
-#         Canvas_Tools(self.gpm_canvas)
-        self.gpm_canvas.zoomToFullExtent()
-        self.gpm_canvas.refresh()
-         
-#         list_layer = [r_lyr,baseLayer_polygon,baseLayer_line,baseLayer_point]#base layer가 아래에
-        list_layer = [baseLayer_polygon,baseLayer_line,baseLayer_point,r_lyr]#base layer가 위에
-        layers = [layer.id() for layer in list_layer]
-         
-        extent = canvas.extent()
-          
-        mapSettings = QgsMapSettings()
-        mapSettings.setMapUnits(0)
-        mapSettings.setExtent(extent)
-        mapSettings.setOutputDpi(dpi)
-        mapSettings.setOutputSize(QSize(width,height))
-        mapSettings.setLayers(layers)
-        mapSettings.setFlags(QgsMapSettings.Antialiasing|QgsMapSettings.UseAdvancedEffects
-                             |QgsMapSettings.ForceVectorOutput| QgsMapSettings.DrawLabeling)
-          
-        p = QPainter()
-        p.begin(img)
-        mapRender =  QgsMapRendererCustomPainterJob(mapSettings, p)
-        mapRender.start()
-        mapRender.waitForFinished()
-        p.end()
-          
-#         saveName = "D:/Working/Gungiyeon/GPM/GPM_test/T20181213/test.png"
-        img.save(saveName,'png')
-    
-    
+        except Exception as exc:
+            QgsMapLayerRegistry.instance().removeMapLayers(layers)
+            _util.MessageboxShowError("GPM IMG", str(exc))
+            return
     
     
     
@@ -2330,10 +2570,10 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         #                     QgsMessageLog.logMessage(str(savePath),"GPM IMG")
         #                     QgsMapLayerRegistry.instance().addMapLayers([png_name,self.baseLayer], False)
         #                     saveImg = _saveimg.savePng_base((canvas), (png_name), (vectorLayer), png_name)
-                            saveImg = self.savePng_base(canvas, png_name, vectorLayer_polygon,vectorLayer_line,vectorLayer_point, savePath)
+                            saveImg = self.savePng_base(self.gpm_canvas, png_name, vectorLayer_polygon,vectorLayer_line,vectorLayer_point, savePath)
                             
                             sleep(0.5)
-                            self.btl_png_list.addItem(png_name) #이게 결과 png 파일임. 이것만 들어가도록 처리..
+                            self.btl_png_list.addItem(savePath) #이게 결과 png 파일임. 이것만 들어가도록 처리..
         #                     self.btl_png_list.addItem(i.text().upper().replace(".ASC",".PNG"))
                             #self.Png_Add_Text(i.text().upper().replace(".ASC",".PNG"))
                     else:

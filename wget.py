@@ -92,7 +92,7 @@ def create_bat_script(start,end,folder):
             
             #late 사용
             file1="3B-HHR-L.MS.MRG.3IMERG.{0}-S{1}-E{2}.{3}.V05B.RT-H5".format(dd.strftime('%Y%m%d'),S_file[i],E_file[i],timelist[i])
-            arg = wget_path + " -r -nd -P \"""{0}\" ".format(folder+"/"+createTime_folder)+ "--ftp-user=jh-kim@kict.re.kr --ftp-password=jh-kim@kict.re.kr --content-on-error {0}".format(url+datefolder+"/"+file1)
+            arg = wget_path + " -bqc -r -nd -P \"""{0}\" ".format(folder+"/"+createTime_folder)+ "--ftp-user=jh-kim@kict.re.kr --ftp-password=jh-kim@kict.re.kr --content-on-error {0}".format(url+datefolder+"/"+file1)
 #             print os.system(arg).read()
             arg_str.append(arg)
 #             arg_str +=arg +"\n"

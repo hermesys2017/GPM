@@ -241,8 +241,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         
         
         # 클립 영역 선택 콤보 박스 셋팅 (한반도 , 남한 영역, 필리핀, 모로코 영역)
-        #self.cmb_clip_zone.addItems(["Select Country","Korea","South_Korea","Philippines","Morocco", "Korea_Typoon"])
-        self.cmb_clip_zone.addItems(_Dict_clip.cmb_Clip)
+        self.cmb_clip_zone.addItems(["Select Country","Korea","South_Korea","Philippines","Morocco", "Korea_Typoon"])
+		self.cmb_clip_zone.addItems(_Dict_clip.cmb_Clip)
 #         self.cmb_utm_source.addItems(["Select UTM","WGS84_UTM 28N","WGS84_UTM 29N","WGS84_UTM 30N","WGS84_UTM 50N","WGS84_UTM 51N","WGS84_UTM 52N","WGS84_UTM 53N"])
         self.cmb_utm_target.addItems(["Select UTM", 
                                       'WGS84_UTM 1N','WGS84_UTM 1S','WGS84_UTM 2N','WGS84_UTM 2S','WGS84_UTM 3N','WGS84_UTM 3S','WGS84_UTM 4N','WGS84_UTM 4S','WGS84_UTM 5N','WGS84_UTM 5S',
@@ -268,7 +268,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         # 라디오 버튼 이벤트 처리
         self.rdo_Combo_Clip.clicked.connect(self.Rdo_Selected)
         self.rdo_Shape_Clip.clicked.connect(self.Rdo_Selected)
-        self.rdo_user_clip.clicked.connect(self.Rdo_Selected)
+		self.rdo_user_clip.clicked.connect(self.Rdo_Selected)
 
         # Shape 파일 경로 받아 오기
         self.btn_shape_dialog.clicked.connect(lambda :self.Shape_Select(self.txt_Shape_path))
@@ -1619,7 +1619,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         try:
             # 사용자가 선택한 파일 목록
             #_ASC_filename = QFileDialog.getOpenFileNames(self,"Select Input ASC FILES",dir,"*.asc *.ASC ",options=QtGui.QFileDialog.DontUseNativeDialog)
-            _ASC_filename = QFileDialog.getOpenFileNames(self,"Select Input ASC FILES",'c://',"*.asc *.ASC ")
+			_ASC_filename = QFileDialog.getOpenFileNames(self,"Select Input ASC FILES",'c://',"*.asc *.ASC ")
+
             
             #btnOpenDialog_Input에 선택한 파일들의 폴더 경로 넣기
             self.txt_Input_data.setText(os.path.dirname(_ASC_filename[0]))
@@ -1698,8 +1699,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 xform = QgsCoordinateTransform(crsSrc, crsDest)
                 
                 for feat in features:
-                    feat2 = [str(feat_item).upper() for feat_item in feat.attributes()] #여기서 사용자가 이제 철자를 완전 동일하지 않아도 모두 대문자화 시킴
-#                     if (txt) in  (feat.attributes()):
+                	feat2 = [str(feat_item).upper() for feat_item in feat.attributes()] #여기서 사용자가 이제 철자를 완전 동일하지 않아도 모두 대문자화 시킴
+                    #if (txt) in  (feat.attributes()):
                     if (txt.upper()) in feat2:
                         geom = feat.geometry()
                         convert_crs_coord = (xform.transform(geom.asPoint()))
@@ -2103,7 +2104,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                  asc_path,
                  color_path,
                  png_path]
-        callvalue = sub.call(mycall,shell=True)
+        callvalue = subprocess.call(mycall,shell=True)
         if callvalue != 0:
             _util.MessageboxShowInfo("Notice", "Not completed.")
     
@@ -2424,61 +2425,52 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         wget_path = os.path.dirname(sys.argv[0])
         wget_folder =(QFileDialog.getExistingDirectory(self,"Select Output Directory",wget_path))
         self.txt_bat_path.setText(wget_folder)
-    
+        
+        
     def wget_create_bat(self):
         try:
-#             QgsMessageLog.logMessage(str(self.txt_userID.text())+"\n"+str(self.txt_userPW.text()),"GPM WGET")
-            userId =self.txt_userID.text() ; userPw = self.txt_userPW.text()
-            wget.create_bat_script(userId,userPw,self.start_date.text(),self.end_date.text(),wget_folder)
+#             output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.bat"
+            wgetFile= wget.create_bat_script(self.start_date.text(),self.end_date.text(),wget_folder)
             _util.MessageboxShowInfo("GPM", "A batch file was created on the desktop.")
+#             for wget_count in (wgetFile):
+#                 stdout = sub.Popen(wget_count,stdout=sub.PIPE)
+#                 self.data_process_log.setText(str(stdout))
+#             for wget_count in range(len(wgetFile)):
+#                 self.data_process_log.setText(wgetFile[wget_count])
+#             output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.txt"
+#             outputfile = open(output,'w+')
+#             for wget_count in (wgetFile):
+#                 wget_count = wget_count.replace("\\","/")
+#             stdoutput = os.popen2(wgetFile[0]).read()
+#             stdoutput = subprocess.call(wgetFile[0],stdout=subprocess.PIPE)
+#             outputstr=process.stdout.readline()
+#             outputfile.write(stdoutput)
+#             QgsMessageLog.logMessage(str(stdoutput),"GPM WGET READ")
+#                 for line in strprocess.stdout:
+#                 output= strprocess.communicate()
+
+            
+#             outputfile.close()   
+#                 stdoutput=self.run_command(wget_count)
+#                 stdoutput = sub.check_output([wget_count],stderr=sub.STDOUT)
+                
+#                 stdoutput = os.popen4(wget_count)[1].read()
+# #                 
+#                 for row in (open(output,'r').read()):
+#                     self.data_process_log.setText(row)
+#             
+#             file.close()
+#                 stdouterr = os.popen4(wget_count)[1].read()
+#                 stdouterr = sub.check_output(wget_count)
+#                 QgsMessageLog.logMessage(str(stdouterr),"GPM wget")
+#                 self.data_process_log.setText(stdouterr)
+#                 sleep(0.01)
+
+            
+#             _util.MessageboxShowInfo("GPM", "A batch file was created on the desktop.")
 #             _util.MessageboxShowInfo("GPM", ("바탕화면에 GPM_data_download.bat 파일이 생성되었습니다.").decode('utf-8'))
         except Exception as e:
-            _util.MessageboxShowError("GPM WGET",str(e))    
-        
-#     def wget_create_bat(self):
-#         try:
-# #             output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.bat"
-#             wgetFile= wget.create_bat_script(self.start_date.text(),self.end_date.text(),wget_folder)
-#             _util.MessageboxShowInfo("GPM", "A batch file was created on the desktop.")
-# #             for wget_count in (wgetFile):
-# #                 stdout = sub.Popen(wget_count,stdout=sub.PIPE)
-# #                 self.data_process_log.setText(str(stdout))
-# #             for wget_count in range(len(wgetFile)):
-# #                 self.data_process_log.setText(wgetFile[wget_count])
-# #             output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.txt"
-# #             outputfile = open(output,'w+')
-# #             for wget_count in (wgetFile):
-# #                 wget_count = wget_count.replace("\\","/")
-# #             stdoutput = os.popen2(wgetFile[0]).read()
-# #             stdoutput = subprocess.call(wgetFile[0],stdout=subprocess.PIPE)
-# #             outputstr=process.stdout.readline()
-# #             outputfile.write(stdoutput)
-# #             QgsMessageLog.logMessage(str(stdoutput),"GPM WGET READ")
-# #                 for line in strprocess.stdout:
-# #                 output= strprocess.communicate()
-# 
-#             
-# #             outputfile.close()   
-# #                 stdoutput=self.run_command(wget_count)
-# #                 stdoutput = sub.check_output([wget_count],stderr=sub.STDOUT)
-#                 
-# #                 stdoutput = os.popen4(wget_count)[1].read()
-# # #                 
-# #                 for row in (open(output,'r').read()):
-# #                     self.data_process_log.setText(row)
-# #             
-# #             file.close()
-# #                 stdouterr = os.popen4(wget_count)[1].read()
-# #                 stdouterr = sub.check_output(wget_count)
-# #                 QgsMessageLog.logMessage(str(stdouterr),"GPM wget")
-# #                 self.data_process_log.setText(stdouterr)
-# #                 sleep(0.01)
-# 
-#             
-# #             _util.MessageboxShowInfo("GPM", "A batch file was created on the desktop.")
-# #             _util.MessageboxShowInfo("GPM", ("바탕화면에 GPM_data_download.bat 파일이 생성되었습니다.").decode('utf-8'))
-#         except Exception as e:
-#             _util.MessageboxShowError("GPM",str(e))
+            _util.MessageboxShowError("GPM",str(e))
     
 #     def run_command(self,command):
 #         QgsMessageLog.logMessage(str(command),"GPM wget output")

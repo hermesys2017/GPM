@@ -45,5 +45,5 @@ class dict_clip:
          #  영역 순서 : xMin yMax xMax yMin 로 입력
         '''
         self.Clip_dic['TTT'] = 'xMin yMax xMax yMin'
-        
+#         self.Clip_dic['TTT'] = '90 46 120 6'
         

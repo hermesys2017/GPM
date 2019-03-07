@@ -1026,11 +1026,11 @@ class satellite_correction():
             return errmsg
         
      
-sate = satellite_correction()
-    
-save_path="D:/Working/Gungiyeon/GPM/GPM_test/T20181126/satellite_correction_plugin"
-asc_file_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prj_asc/resampling/50km/3B-HHR-L.MS.MRG.3IMERG.20180515-S153000-E155959.0930.V05B.RT-H5_pCal.asc"]
-groundFile_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prof_sample/2018-05-16001200000AM.csv"]
-_decimal=2
-    
-sate.run_correction(save_path, asc_file_list, groundFile_list, _decimal)
+# sate = satellite_correction()
+#     
+# save_path="D:/Working/Gungiyeon/GPM/GPM_test/T20181126/satellite_correction_plugin"
+# asc_file_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prj_asc/resampling/50km/3B-HHR-L.MS.MRG.3IMERG.20180515-S153000-E155959.0930.V05B.RT-H5_pCal.asc"]
+# groundFile_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prof_sample/2018-05-16001200000AM.csv"]
+# _decimal=2
+#     
+# sate.run_correction(save_path, asc_file_list, groundFile_list, _decimal)

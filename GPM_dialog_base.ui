@@ -29,7 +29,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>KICT GPM</string>
+   <string>GPM Developer</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QTreeWidget" name="treeWidget">
@@ -63,7 +63,7 @@
      <enum>QTabWidget::Rounded</enum>
     </property>
     <property name="currentIndex">
-     <number>10</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab_12">
      <attribute name="title">
@@ -201,6 +201,52 @@
       </property>
       <property name="textInteractionFlags">
        <set>Qt::NoTextInteraction</set>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_43">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>14</y>
+        <width>56</width>
+        <height>12</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>User ID : </string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_44">
+      <property name="geometry">
+       <rect>
+        <x>260</x>
+        <y>14</y>
+        <width>105</width>
+        <height>15</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>User Password' : </string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="txt_userID">
+      <property name="geometry">
+       <rect>
+        <x>110</x>
+        <y>9</y>
+        <width>113</width>
+        <height>20</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="txt_userPW">
+      <property name="geometry">
+       <rect>
+        <x>370</x>
+        <y>10</y>
+        <width>113</width>
+        <height>20</height>
+       </rect>
       </property>
      </widget>
     </widget>
@@ -414,34 +460,89 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
       <property name="title">
        <string/>
       </property>
-      <widget class="QPushButton" name="btn_Output_Folder">
+      <widget class="QLineEdit" name="clip_1_y">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="geometry">
         <rect>
-         <x>890</x>
-         <y>38</y>
-         <width>115</width>
-         <height>23</height>
+         <x>670</x>
+         <y>40</y>
+         <width>101</width>
+         <height>20</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="clip_2_y">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>827</x>
+         <y>40</y>
+         <width>101</width>
+         <height>20</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_36">
+       <property name="geometry">
+        <rect>
+         <x>783</x>
+         <y>23</y>
+         <width>16</width>
+         <height>20</height>
         </rect>
        </property>
        <property name="text">
-        <string>...</string>
+        <string>2</string>
        </property>
       </widget>
-      <widget class="QComboBox" name="cmb_clip_zone">
+      <widget class="QLabel" name="label_38">
+       <property name="geometry">
+        <rect>
+         <x>931</x>
+         <y>11</y>
+         <width>80</width>
+         <height>12</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>(-180 ~ 180 )</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_33">
+       <property name="geometry">
+        <rect>
+         <x>636</x>
+         <y>9</y>
+         <width>40</width>
+         <height>12</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>xMin</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="txt_Shape_path">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="geometry">
         <rect>
          <x>127</x>
-         <y>10</y>
-         <width>247</width>
-         <height>22</height>
+         <y>38</y>
+         <width>344</width>
+         <height>21</height>
         </rect>
        </property>
       </widget>
       <widget class="QRadioButton" name="rdo_Combo_Clip">
        <property name="geometry">
         <rect>
-         <x>20</x>
-         <y>13</y>
+         <x>11</x>
+         <y>9</y>
          <width>101</width>
          <height>17</height>
         </rect>
@@ -450,28 +551,44 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
         <string>Clip Zone :</string>
        </property>
       </widget>
-      <widget class="QLabel" name="label_9">
-       <property name="geometry">
-        <rect>
-         <x>19</x>
-         <y>43</y>
-         <width>137</width>
-         <height>12</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Output Data Folder : </string>
-       </property>
-      </widget>
-      <widget class="QRadioButton" name="rdo_Shape_Clip">
+      <widget class="QLineEdit" name="clip_1_x">
        <property name="enabled">
         <bool>false</bool>
        </property>
        <property name="geometry">
         <rect>
-         <x>390</x>
-         <y>13</y>
-         <width>130</width>
+         <x>668</x>
+         <y>6</y>
+         <width>101</width>
+         <height>20</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="rdo_user_clip">
+       <property name="geometry">
+        <rect>
+         <x>544</x>
+         <y>27</y>
+         <width>80</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>User Clip</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="rdo_Shape_Clip">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>40</y>
+         <width>115</width>
          <height>17</height>
         </rect>
        </property>
@@ -488,15 +605,64 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
         <bool>true</bool>
        </property>
       </widget>
+      <widget class="QComboBox" name="cmb_clip_zone">
+       <property name="geometry">
+        <rect>
+         <x>118</x>
+         <y>6</y>
+         <width>247</width>
+         <height>22</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_35">
+       <property name="geometry">
+        <rect>
+         <x>794</x>
+         <y>6</y>
+         <width>40</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>xMax</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_37">
+       <property name="geometry">
+        <rect>
+         <x>640</x>
+         <y>44</y>
+         <width>30</width>
+         <height>12</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>yMin</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_32">
+       <property name="geometry">
+        <rect>
+         <x>794</x>
+         <y>40</y>
+         <width>40</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>yMax</string>
+       </property>
+      </widget>
       <widget class="QPushButton" name="btn_shape_dialog">
        <property name="enabled">
         <bool>false</bool>
        </property>
        <property name="geometry">
         <rect>
-         <x>890</x>
-         <y>9</y>
-         <width>115</width>
+         <x>474</x>
+         <y>36</y>
+         <width>60</width>
          <height>23</height>
         </rect>
        </property>
@@ -504,46 +670,51 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
         <string>...</string>
        </property>
       </widget>
-      <widget class="QLineEdit" name="txt_Shape_path">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
+      <widget class="QLabel" name="label_39">
        <property name="geometry">
         <rect>
-         <x>530</x>
-         <y>10</y>
-         <width>359</width>
-         <height>21</height>
+         <x>936</x>
+         <y>44</y>
+         <width>70</width>
+         <height>12</height>
         </rect>
        </property>
+       <property name="text">
+        <string>(-90 ~ 90 )</string>
+       </property>
       </widget>
-      <widget class="QLineEdit" name="txt_output_clip">
+      <widget class="QLineEdit" name="clip_2_x">
        <property name="enabled">
         <bool>false</bool>
        </property>
        <property name="geometry">
         <rect>
-         <x>168</x>
-         <y>40</y>
-         <width>721</width>
+         <x>827</x>
+         <y>6</y>
+         <width>101</width>
          <height>20</height>
         </rect>
        </property>
       </widget>
-      <zorder>rdo_Shape_Clip</zorder>
-      <zorder>btn_Output_Folder</zorder>
-      <zorder>cmb_clip_zone</zorder>
-      <zorder>rdo_Combo_Clip</zorder>
-      <zorder>label_9</zorder>
-      <zorder>btn_shape_dialog</zorder>
-      <zorder>txt_Shape_path</zorder>
-      <zorder>txt_output_clip</zorder>
+      <widget class="QLabel" name="label_34">
+       <property name="geometry">
+        <rect>
+         <x>627</x>
+         <y>27</y>
+         <width>16</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>1</string>
+       </property>
+      </widget>
      </widget>
      <widget class="QPushButton" name="btn_apply_clip">
       <property name="geometry">
        <rect>
-        <x>855</x>
-        <y>549</y>
+        <x>850</x>
+        <y>570</y>
         <width>165</width>
         <height>25</height>
        </rect>
@@ -611,6 +782,75 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        <string>Select TIFF Files</string>
       </property>
      </widget>
+     <widget class="QLabel" name="label_9">
+      <property name="geometry">
+       <rect>
+        <x>25</x>
+        <y>540</y>
+        <width>137</width>
+        <height>12</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Output Data Folder : </string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btn_Output_Folder">
+      <property name="geometry">
+       <rect>
+        <x>896</x>
+        <y>535</y>
+        <width>115</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>...</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="txt_output_clip">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>174</x>
+        <y>537</y>
+        <width>721</width>
+        <height>20</height>
+       </rect>
+      </property>
+     </widget>
+     <zorder>groupBox</zorder>
+     <zorder>btn_apply_clip</zorder>
+     <zorder>tb_clip_Tiff</zorder>
+     <zorder>txt_Clip_EX</zorder>
+     <zorder>clip_progressBar</zorder>
+     <zorder>btn_input_tiff</zorder>
+     <zorder>clip_1_y</zorder>
+     <zorder>btn_shape_dialog</zorder>
+     <zorder>label_9</zorder>
+     <zorder>label_39</zorder>
+     <zorder>label_34</zorder>
+     <zorder>label_37</zorder>
+     <zorder>cmb_clip_zone</zorder>
+     <zorder>label_35</zorder>
+     <zorder>label_32</zorder>
+     <zorder>label_33</zorder>
+     <zorder>clip_2_y</zorder>
+     <zorder>rdo_user_clip</zorder>
+     <zorder>rdo_Combo_Clip</zorder>
+     <zorder>txt_output_clip</zorder>
+     <zorder>btn_Output_Folder</zorder>
+     <zorder>rdo_Shape_Clip</zorder>
+     <zorder>clip_2_x</zorder>
+     <zorder>txt_Shape_path</zorder>
+     <zorder>clip_1_x</zorder>
+     <zorder>label_36</zorder>
+     <zorder>label_38</zorder>
+     <zorder>label_9</zorder>
+     <zorder>btn_Output_Folder</zorder>
+     <zorder>txt_output_clip</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">

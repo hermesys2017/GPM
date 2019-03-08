@@ -327,7 +327,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         
         # convert CSV
 #         self.txt_fieldname_shp.setText("u_id")
-        self.btn_csv_shp.clicked.connect(lambda: self.Shape_Select(self.txt_csv_shp))
+#         self.btn_csv_shp.clicked.connect(lambda: self.Shape_Select(self.txt_csv_shp))
+        self.btn_csv_shp.clicked.connect(self.read_SHP)
         self.btn_csv_csv.clicked.connect(lambda: self.Save_File_Dialog(self.txt_shp_field,"csv"))
 #         (lambda: self.Save_File_Dialog(self.txt_shp_field,"shp"))
         self.btn_raster_tiff.clicked.connect(self.raster_tiff_select)
@@ -1436,18 +1437,20 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 return
             
             #여기서 중요 포인트는 shape 파일은 반드시 좌표계를 지니고 있어야함(prj 파일) 
-            v_layer =QgsVectorLayer(Input_file,"SHP","ogr")
+#             v_layer =QgsVectorLayer(Input_file,"SHP","ogr")
             
-            if get_field.strip() =="":
-                _util.MessageboxShowInfo("GPM", "The FieldName is not set.")
-                self.txt_fieldname_shp.setFocus()
-                return  
-            
+#             if get_field.strip() =="":
+#                 _util.MessageboxShowInfo("GPM", "The FieldName is not set.")
+#                 self.txt_fieldname_shp.setFocus()
+#                 return  
+#             QgsMessageLog.logMessage(str(self.cmb_FieldAtt.currentText()),"GPM CSV")
             try:
+#                 self.read_SHP(v_layer)
                 # 2018-11-09 : 헤더가 존재하면 파일을 생성하고 없으면 생성하지 않음
                 self.csv_file = open(output_file,'w+')
                 self.csv_file.write("filename")
-                get_shape_fieldname = self.get_shape_coord(v_layer,(self.txt_fieldname_shp.text()))
+#                 get_shape_fieldname = self.get_shape_coord(v_layer,(self.txt_fieldname_shp.text()))
+                get_shape_fieldname = self.get_shape_coord((self.cmb_FieldAtt.currentText()))
                 #lOG
                 #QgsMessageLog.logMessage(str(get_shape_fieldname),"GPM MAKE CSV")
                 
@@ -1470,43 +1473,70 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #             _util.ConvertShapeToCSV(Input_file,output_file)
         except Exception as e:
             _util.MessageboxShowError("GPM",str(e))
+    
+    
+    
+     
+     
+    #20189-03-07 : SHP를 읽기만하는 곳.
+    def read_SHP(self):
+        fname = QFileDialog.getOpenFileName(self, 'Open file','c://', "Shape files (*.shp)")
+        if _util.CheckFile(fname):
+            self.txt_csv_shp.setText(fname)
             
+        v_layer =QgsVectorLayer(fname,"SHP","ogr")
+        prov = (v_layer).dataProvider()
+        self.features = (v_layer).getFeatures()
+        #필드 이름
+        self.fieldNames = []
+        fields = prov.fields()
+#         fields = prov.fields()
+        for field in fields:
+            #txt가 아닌 콤보 박스에 세팅되도로고 함..
+#             self.fieldNames.append( ((str(field.name())).upper()))
+            self.fieldNames.append(str(field.name()))
+        self.cmb_FieldAtt.addItems(self.fieldNames)
     
     #2018-10-19 : shape의 좌표, 필드 이름의 값 가져오기.
-    def get_shape_coord(self,shapefile,txt):    
+#     def get_shape_coord(self,shapefile,txt):    
+    def get_shape_coord(self,txt):    
 #         v_layer =QgsVectorLayer(shapefile,"SHP","ogr")
         
-        prov = shapefile.dataProvider()
-        features = shapefile.getFeatures()
-        
-        #필드 이름
-        fieldNames = []
-        fields = prov.fields()
-        for field in fields:
-            fieldNames.append( ((str(field.name())).upper()))
+#         prov = shapefile.dataProvider()
+#         features = shapefile.getFeatures()
+#         
+#         #필드 이름
+#         fieldNames = []
+# #         fields = prov.fields()
+#         for field in self.fields:
+#             fieldNames.append( ((str(field.name())).upper()))
             
 #         for name in fieldNames:
 #             if (name == txt):
 #                 QgsMessageLog.logMessage(str(name),"GPM CSV 1")
 #                 self.csv_file.write(str(name))
-        self.point_list = []         
-        #필드 값이 있는 것이면 수행. 없으면 msg
-        if ((txt.upper())) not in fieldNames:
-            _util.MessageboxShowInfo("GPM", "No have FieldName")
-            #2018-11-09 msg 출력 후 에 진행 X, return으로 stop 시킴      
-            return False
-
-        if ((txt.upper())) in fieldNames:
-            for feat in features:
-                #좌표값
-                geom = feat.geometry()
-                self.point_list.append(geom.asPoint())
-#                 QgsMessageLog.logMessage(str((feat[(((txt.upper()).decode('cp949').encode('utf-8')))])),"GPM CSV")
-                #필드 값
-    #             QgsMessageLog.logMessage(str(feat[txt]),"GPM CSV 1")
-#                 self.csv_file.write(","+str(feat[(((txt.upper()).decode('cp949').encode('utf-8')))]))
-                self.csv_file.write(","+str(feat[(txt.upper())]))
-        return True
+        try:
+            self.point_list = []         
+            #필드 값이 있는 것이면 수행. 없으면 msg
+            if ((txt.upper())) not in (self.fieldNames):
+                _util.MessageboxShowInfo("GPM", "No have FieldName")
+                #2018-11-09 msg 출력 후 에 진행 X, return으로 stop 시킴      
+                return False
+    
+    #         if ((txt.upper())) in fieldNames:
+            if (txt.upper()) in (self.fieldNames):
+                for feat in (self.features):
+                    #좌표값
+                    geom = feat.geometry()
+                    self.point_list.append(geom.asPoint())
+    #                 QgsMessageLog.logMessage(str((feat[(((txt.upper()).decode('cp949').encode('utf-8')))])),"GPM CSV")
+                    #필드 값
+        #             QgsMessageLog.logMessage(str(feat[txt]),"GPM CSV 1")
+    #                 self.csv_file.write(","+str(feat[(((txt.upper()).decode('cp949').encode('utf-8')))]))
+                    self.csv_file.write(","+str(feat[(txt.upper())]))
+            return True
+        except Exception as exc:
+            _util.MessageboxShowError("GPM CSV",str(exc))
                 
     # shape 좌표 위치의 래스터 셀 값 가져오기
     # 래스터 선택해야 함.

@@ -10,7 +10,7 @@
 name=GPM_developer
 qgisMinimumVersion=2.0
 description=GPM_developer
-version=0.0.1.26
+version=0.0.1.27
 author=Hermesys
 email=mhcho058@hermesys.co.kr
 

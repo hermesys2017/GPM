@@ -63,7 +63,7 @@
      <enum>QTabWidget::Rounded</enum>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>6</number>
     </property>
     <widget class="QWidget" name="tab_12">
      <attribute name="title">
@@ -1538,6 +1538,9 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
       </widget>
       <widget class="QLineEdit" name="txt_fieldname_shp">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="geometry">
         <rect>
          <x>150</x>
@@ -1597,6 +1600,16 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
        <property name="text">
         <string>FieldName :</string>
+       </property>
+      </widget>
+      <widget class="QComboBox" name="cmb_FieldAtt">
+       <property name="geometry">
+        <rect>
+         <x>340</x>
+         <y>50</y>
+         <width>176</width>
+         <height>22</height>
+        </rect>
        </property>
       </widget>
      </widget>

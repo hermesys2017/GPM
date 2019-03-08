@@ -52,7 +52,7 @@ class accum_util():
                 run_saga=[osgeo4w,
                           saga_path,"grid_calculus","8",
                           "-GRIDS",listTostr,
-#                           "-USE_NODATA","true",           
+#                         "-USE_NODATA","true",           
                           "-RESULT",output]
                 #nodata 추가함
 #                 create_file.write(str(run_saga)+"\n")

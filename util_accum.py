@@ -5,6 +5,7 @@ import Util
 from qgis.PyQt.QtCore import QDir
 import uuid
 from time import sleep 
+from osgeo import gdal
 
 _util = Util.util()
 
@@ -41,19 +42,25 @@ class accum_util():
         
         onelist=[]
         for file in TIFF_list:
+            
+            #여기서 nodata 값을 얻어야 겠다 # 2019-03-12 추가
+#             tiff_ds = gdal.Open(file)
+#             Nodata = tiff_ds.GetRasterBand(1) .GetNoDataValue()
+            
             filename = _util.GetFilename(file)
             onelist.append(file)
             listTostr=";".join(onelist)
             
-            grids = " -GRIDS {}".format(listTostr)
-            results=" -RESULT {}".format(output)
+#             grids = " -GRIDS {}".format(listTostr)
+#             results=" -RESULT {}".format(output)
             try:     
 #                 run_saga=saga_path+" grid_calculus 8 {0} {1}".format(grids,results)
                 run_saga=[osgeo4w,
                           saga_path,"grid_calculus","8",
                           "-GRIDS",listTostr,
-#                         "-USE_NODATA","true",           
-                          "-RESULT",output]
+#                           "-USE_NODATA",str(Nodata),          
+                          "-RESULT",output,
+                          "-NODATA","True"]
                 #nodata 추가함
 #                 create_file.write(str(run_saga)+"\n")
 #                 call_arg =[osgeo4w,run_saga]
@@ -100,10 +107,14 @@ class accum_util():
 #         create_filename = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_Accum_Amount.txt"
 #         create_file = open(create_filename,'w+')
 #         arg = gdal_calc + " -A {0} --format GTiff --calc A*30/60 --outfile {1}".format(input,output)
+        
+        tiff_ds = gdal.Open(input)
+        Nodata = tiff_ds.GetRasterBand(1) .GetNoDataValue()
+        
         call_arg = [osgeo4w,
                     "gdal_calc",
                     "-A",input,"--format","GTiff","--calc","A*30/60",
-                    "--outfile",str(output)]
+                    "--outfile",str(output),"--NoDataValue",str(Nodata)]
 #         create_file.write("\n"+str(call_arg))
         subprocess.call(call_arg,shell=True)
         sleep(0.5)

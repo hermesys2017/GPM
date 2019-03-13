@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1220</width>
-    <height>766</height>
+    <width>1210</width>
+    <height>757</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -63,7 +63,13 @@
      <enum>QTabWidget::Rounded</enum>
     </property>
     <property name="currentIndex">
-     <number>6</number>
+     <number>7</number>
+    </property>
+    <property name="usesScrollButtons">
+     <bool>true</bool>
+    </property>
+    <property name="tabsClosable">
+     <bool>false</bool>
     </property>
     <widget class="QWidget" name="tab_12">
      <attribute name="title">
@@ -73,7 +79,7 @@
       <property name="geometry">
        <rect>
         <x>38</x>
-        <y>41</y>
+        <y>146</y>
         <width>70</width>
         <height>20</height>
        </rect>
@@ -86,7 +92,7 @@
       <property name="geometry">
        <rect>
         <x>320</x>
-        <y>40</y>
+        <y>145</y>
         <width>110</width>
         <height>22</height>
        </rect>
@@ -103,7 +109,7 @@
       <property name="geometry">
        <rect>
         <x>110</x>
-        <y>40</y>
+        <y>145</y>
         <width>110</width>
         <height>22</height>
        </rect>
@@ -120,7 +126,7 @@
       <property name="geometry">
        <rect>
         <x>770</x>
-        <y>130</y>
+        <y>235</y>
         <width>90</width>
         <height>23</height>
        </rect>
@@ -133,7 +139,7 @@
       <property name="geometry">
        <rect>
         <x>250</x>
-        <y>40</y>
+        <y>145</y>
         <width>70</width>
         <height>20</height>
        </rect>
@@ -146,7 +152,7 @@
       <property name="geometry">
        <rect>
         <x>39</x>
-        <y>90</y>
+        <y>195</y>
         <width>120</width>
         <height>20</height>
        </rect>
@@ -162,7 +168,7 @@
       <property name="geometry">
        <rect>
         <x>169</x>
-        <y>90</y>
+        <y>195</y>
         <width>590</width>
         <height>20</height>
        </rect>
@@ -172,7 +178,7 @@
       <property name="geometry">
        <rect>
         <x>770</x>
-        <y>88</y>
+        <y>193</y>
         <width>90</width>
         <height>23</height>
        </rect>
@@ -185,9 +191,9 @@
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>170</y>
+        <y>310</y>
         <width>841</width>
-        <height>451</height>
+        <height>311</height>
        </rect>
       </property>
       <property name="verticalScrollBarPolicy">
@@ -207,7 +213,7 @@
       <property name="geometry">
        <rect>
         <x>40</x>
-        <y>14</y>
+        <y>119</y>
         <width>56</width>
         <height>12</height>
        </rect>
@@ -220,7 +226,7 @@
       <property name="geometry">
        <rect>
         <x>260</x>
-        <y>14</y>
+        <y>119</y>
         <width>105</width>
         <height>15</height>
        </rect>
@@ -233,7 +239,7 @@
       <property name="geometry">
        <rect>
         <x>110</x>
-        <y>9</y>
+        <y>114</y>
         <width>113</width>
         <height>20</height>
        </rect>
@@ -243,10 +249,49 @@
       <property name="geometry">
        <rect>
         <x>370</x>
-        <y>10</y>
+        <y>115</y>
         <width>113</width>
         <height>20</height>
        </rect>
+      </property>
+     </widget>
+     <widget class="QProgressBar" name="wget_progress">
+      <property name="geometry">
+       <rect>
+        <x>35</x>
+        <y>235</y>
+        <width>181</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="value">
+       <number>0</number>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="rdo_64">
+      <property name="geometry">
+       <rect>
+        <x>45</x>
+        <y>50</y>
+        <width>110</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>windows 64bit</string>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="rdo_32">
+      <property name="geometry">
+       <rect>
+        <x>275</x>
+        <y>50</y>
+        <width>105</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>windows 32bit</string>
       </property>
      </widget>
      <zorder>label_3</zorder>
@@ -262,6 +307,9 @@
      <zorder>txt_userID</zorder>
      <zorder>txt_userPW</zorder>
      <zorder>start_date</zorder>
+     <zorder>wget_progress</zorder>
+     <zorder>rdo_64</zorder>
+     <zorder>rdo_32</zorder>
     </widget>
     <widget class="QWidget" name="tab_8">
      <attribute name="title">
@@ -1683,7 +1731,7 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
          <x>10</x>
          <y>20</y>
          <width>992</width>
-         <height>91</height>
+         <height>86</height>
         </rect>
        </property>
       </widget>
@@ -1708,9 +1756,9 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
       <property name="geometry">
        <rect>
         <x>6</x>
-        <y>10</y>
-        <width>1010</width>
-        <height>341</height>
+        <y>35</y>
+        <width>1001</width>
+        <height>316</height>
        </rect>
       </property>
       <attribute name="horizontalHeaderStretchLastSection">
@@ -1780,6 +1828,19 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
       </property>
       <property name="text">
        <string>Apply</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btn_input_function">
+      <property name="geometry">
+       <rect>
+        <x>8</x>
+        <y>5</y>
+        <width>181</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Select Files(TIFF)</string>
       </property>
      </widget>
     </widget>
@@ -2448,7 +2509,7 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
         <rect>
          <x>10</x>
          <y>49</y>
-         <width>621</width>
+         <width>561</width>
          <height>202</height>
         </rect>
        </property>
@@ -2481,7 +2542,7 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
       </widget>
       <widget class="QPushButton" name="btn_pngshp_polygon">
        <property name="enabled">
-        <bool>true</bool>
+        <bool>false</bool>
        </property>
        <property name="geometry">
         <rect>
@@ -2493,19 +2554,6 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
        <property name="text">
         <string>...</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_40">
-       <property name="geometry">
-        <rect>
-         <x>645</x>
-         <y>22</y>
-         <width>105</width>
-         <height>12</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>polygon(하천유역도) :</string>
        </property>
       </widget>
       <widget class="QLineEdit" name="txt_pngshp_polygon">
@@ -2534,27 +2582,14 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
         </rect>
        </property>
       </widget>
-      <widget class="QLabel" name="label_41">
-       <property name="geometry">
-        <rect>
-         <x>655</x>
-         <y>55</y>
-         <width>95</width>
-         <height>12</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Line(하천망) :</string>
-       </property>
-      </widget>
       <widget class="QPushButton" name="btn_pngshp_line">
        <property name="enabled">
-        <bool>true</bool>
+        <bool>false</bool>
        </property>
        <property name="geometry">
         <rect>
          <x>970</x>
-         <y>48</y>
+         <y>45</y>
          <width>30</width>
          <height>23</height>
         </rect>
@@ -2569,8 +2604,8 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
        <property name="geometry">
         <rect>
-         <x>747</x>
-         <y>50</y>
+         <x>748</x>
+         <y>46</y>
          <width>221</width>
          <height>20</height>
         </rect>
@@ -2578,12 +2613,12 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
       </widget>
       <widget class="QPushButton" name="btn_pngshp_point">
        <property name="enabled">
-        <bool>true</bool>
+        <bool>false</bool>
        </property>
        <property name="geometry">
         <rect>
          <x>970</x>
-         <y>80</y>
+         <y>72</y>
          <width>30</width>
          <height>23</height>
         </rect>
@@ -2598,24 +2633,101 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
        <property name="geometry">
         <rect>
-         <x>747</x>
-         <y>82</y>
+         <x>749</x>
+         <y>73</y>
          <width>221</width>
          <height>20</height>
         </rect>
        </property>
       </widget>
-      <widget class="QLabel" name="label_42">
+      <widget class="QCheckBox" name="chk_polygon">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
        <property name="geometry">
         <rect>
-         <x>633</x>
-         <y>87</y>
-         <width>130</width>
-         <height>12</height>
+         <x>595</x>
+         <y>20</y>
+         <width>145</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>polygon(하천유역도) :</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chk_line">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>596</x>
+         <y>50</y>
+         <width>105</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Line(하천망) :</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chk_point">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>598</x>
+         <y>80</y>
+         <width>110</width>
+         <height>15</height>
         </rect>
        </property>
        <property name="text">
         <string>Point(관측소) :</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_40">
+       <property name="geometry">
+        <rect>
+         <x>625</x>
+         <y>145</y>
+         <width>110</width>
+         <height>12</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Polygon(하천유역)</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_41">
+       <property name="geometry">
+        <rect>
+         <x>630</x>
+         <y>175</y>
+         <width>80</width>
+         <height>12</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Line(하천망)</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_42">
+       <property name="geometry">
+        <rect>
+         <x>625</x>
+         <y>200</y>
+         <width>85</width>
+         <height>12</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Point(관측소)</string>
        </property>
       </widget>
      </widget>
@@ -2757,7 +2869,7 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1220</width>
+     <width>1210</width>
      <height>21</height>
     </rect>
    </property>

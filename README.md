@@ -14,3 +14,6 @@ GPM-developer-v1.XX 는 개발자 버전.
 일부 실험적인 코드도 섞여있음.
 
 
+## HISTORY
+### 2019-03-14
+Make Image 기능 보완

@@ -484,6 +484,9 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 
     def Select_Folder_Dialog(self, txt):
         Folder = str(QFileDialog.getExistingDirectory(self, "Select Directory", 'c://'))
+        if _util.CheckKorea(Folder):
+            _util.MessageboxShowInfo("GPM","Check Path, No used Korean.\nPlease use English.")
+        
         if _util.CheckFolder(Folder):
             txt.setText(Folder)
 
@@ -892,7 +895,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                             # prj가 있는 shp는 문제가 있네
                             
 #                             -t_srs EPSG:4326 -tr {1} {2}
-                            arg = "gdalwarp.exe -s_srs EPSG:4326 -t_srs EPSG:4326 -q -cutline {0} -crop_to_cutline -tr {1} {2} -dstalpha -of GTiff {3} {4}".format(
+                            arg = 'gdalwarp.exe -s_srs EPSG:4326 -t_srs EPSG:4326 -q -cutline {0} -crop_to_cutline -tr {1} {2} -dstalpha -of GTiff "{3}" "{4}"'.format(
                                 "\"" + str(self.txt_Shape_path.text()) + "\"", str(clipWidth), str(clipHeight), tif, Output)
 #                             clip_call = [osgeo4w,
 #                                          "gdalwarp.exe","-q","-cutline",str(self.txt_Shape_path.text()),
@@ -2402,7 +2405,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 basepolygon = QgsVectorLayer(self.shp_layer_polygon, (os.path.basename(self.shp_layer_polygon)).split(".shp")[0], "ogr")
     #         QgsMapLayerRegistry.instance().addMapLayers([self.layer, base_map], False)
                 QgsMapLayerRegistry.instance().addMapLayer(basepolygon, False)
-                self.gpm_canvas.setExtent(basepolygon.extent())
+#                 self.gpm_canvas.setExtent(basepolygon.extent())
                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(basepolygon)])
 #                 self.gpm_canvas.setExtent(base_shp.extent())
 #                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(base_shp)])
@@ -2431,8 +2434,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 baseLine = QgsVectorLayer(self.shp_layer_line, (os.path.basename(self.shp_layer_line)).split(".shp")[0], "ogr")
     #         QgsMapLayerRegistry.instance().addMapLayers([self.layer, base_map], False)
                 QgsMapLayerRegistry.instance().addMapLayer(baseLine, False)
-                self.gpm_canvas.setExtent(baseLine.extent())
-                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLine)])
+#                 self.gpm_canvas.setExtent(baseLine.extent())
+#                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLine)])
 #                 self.gpm_canvas.setExtent(base_shp.extent())
 #                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(base_shp)])
             # 파일 선택을 안해서 여전히 빈 값이면~
@@ -2460,8 +2463,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 basePoint = QgsVectorLayer(self.shp_layer_point, (os.path.basename(self.shp_layer_point)).split(".shp")[0], "ogr")
     #         QgsMapLayerRegistry.instance().addMapLayers([self.layer, base_map], False)
                 QgsMapLayerRegistry.instance().addMapLayer(basePoint, False)
-                self.gpm_canvas.setExtent(basePoint.extent())
-                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(basePoint)])
+#                 self.gpm_canvas.setExtent(basePoint.extent())
+#                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(basePoint)])
             # 파일 선택을 안해서 여전히 빈 값이면~
             else:
                 self.shp_layer_point = ""
@@ -2644,7 +2647,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                         # 여기에 분기
                             # base img 있는 png 추가 생성
         #                     layers = [layer.id() for layer in self.gpm_canvas.legendInterface().layers()]
-                            savePath = (png_name.upper()).replace(".PNG", "_base.png")
+#                             savePath = (png_name.upper()).replace(".PNG", "_base.png") #2019-03-14 쓰지 않아
 #                             QgsMessageLog.logMessage("2","GPM IMG")
         #                     QgsMessageLog.logMessage(str(savePath),"GPM IMG")
         #                     QgsMapLayerRegistry.instance().addMapLayers([png_name,self.baseLayer], False)
@@ -2654,7 +2657,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                             QgsMessageLog.logMessage("6", "GPM IMG")
                             
                             sleep(0.5)
-                            self.btl_png_list.addItem(savePath)
+                            self.btl_png_list.addItem(png_name)
                             
 #                             saveImg = self.savePng_base(self.gpm_canvas, png_name, vectorLayer_polygon,vectorLayer_line,vectorLayer_point, savePath)
                         except:
@@ -2727,7 +2730,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #             draw.text((0, 0),(fileName.split("_")[0]),(255,0,128),font=font)
             file_name_replace = str((fileName.split("_")[0]).split("-")[0:]).replace(", ", "-").replace("'", "")
             print file_name_replace
-            QgsMessageLog.logMessage(str(file_name_replace), "GPM PNG ADD")
+#             QgsMessageLog.logMessage(str(file_name_replace), "GPM PNG ADD")
 #             draw.text((0, 0),file_name_replace,(255,255,0),font=font) #노란색 글씨
             draw.text((0, 0), file_name_replace, (255, 0, 0), font=font)  # 빨강
 #             draw.text((0, 0),file_name_replace,(0,0,255),font=font) #파랑
@@ -2737,6 +2740,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             im1.save(filepath)
         except Exception as e:
             _util.MessageboxShowInfo("GPM", str(e))
+    
     
     # ================== wget data download ===============
     def Rdo_Selected_wget(self):

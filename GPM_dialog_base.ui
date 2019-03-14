@@ -63,7 +63,7 @@
      <enum>QTabWidget::Rounded</enum>
     </property>
     <property name="currentIndex">
-     <number>7</number>
+     <number>10</number>
     </property>
     <property name="usesScrollButtons">
      <bool>true</bool>
@@ -2575,8 +2575,8 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
        <property name="geometry">
         <rect>
-         <x>785</x>
-         <y>110</y>
+         <x>840</x>
+         <y>105</y>
          <width>151</width>
          <height>141</height>
         </rect>
@@ -2692,10 +2692,13 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_40">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="geometry">
         <rect>
-         <x>625</x>
-         <y>145</y>
+         <x>620</x>
+         <y>115</y>
          <width>110</width>
          <height>12</height>
         </rect>
@@ -2705,10 +2708,13 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_41">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="geometry">
         <rect>
-         <x>630</x>
-         <y>175</y>
+         <x>625</x>
+         <y>145</y>
          <width>80</width>
          <height>12</height>
         </rect>
@@ -2718,10 +2724,13 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
        </property>
       </widget>
       <widget class="QLabel" name="label_42">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="geometry">
         <rect>
-         <x>625</x>
-         <y>200</y>
+         <x>620</x>
+         <y>170</y>
          <width>85</width>
          <height>12</height>
         </rect>

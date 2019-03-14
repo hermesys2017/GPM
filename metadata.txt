@@ -7,10 +7,10 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=GPM_developer_v28
+name=GPM_developer_v29
 qgisMinimumVersion=2.0
 description=GPM_developer
-version=0.0.1.28
+version=0.0.1.29
 author=Hermesys
 email=mhcho058@hermesys.co.kr
 
@@ -24,21 +24,10 @@ repository=https://github.com/floodmodel/GPM/releases
 
 # Uncomment the following line and add your changelog:
 changelog= 
-	Data download
-	window 64bit, 32bit 에서 사용하는 wget이 다름.(구분) -- 나중에 사용할지 안할지 모르니 구분만 해둠.
-	(안 할 것으로 보긴하지만...)
-	
-	프로그래스바 생성, 현재 wget  download는 실행시 백그라운드에서 수행됨...
-	
-	Accum 기능
-	Funciton에서 기능이 동작을 제대로 수행하지 않던 것은 Nodata 가 처리되지 않았기 때문임.
-	처리하였고 이것은 배포버전 GPM v25에 올라갈 예정임.
-	
-	Funtion 기능
-	reload 해서 layer를 올리는 방식이 굉장히 번거롭다 생각되어 select 버튼을 만들었음.
-	배포에 적용여부는 미정이고 지금은 개발버전에서만 사용함.
-	래스터 계산기를 QGIS 내장 기능을 쓰고 있었으나 개발자 버전은 gdal로 변경했음.
-	(gdal이 사용이나 수정이 편리했음..... 이것 역시 적용 여부는 미정.)
+	2019-03-14
+	Make Image 기능 보완.
+	1) 3개의 SHP 배경 사용 가능
+	2) 마지막에 Load 된 SHP 에 ZOOM IN 되는 현상 해소
 
 	
 		

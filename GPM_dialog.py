@@ -105,7 +105,6 @@ _ASC_filename = []
 # _CSV_filename=[]
 # select_file=[]
 select_file = ""
-select_SHP = ""
 _PNG_filename = []
 # fieldNames=[]
 # convert_crs=[]
@@ -594,7 +593,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 output = folder + name + "_" + self.txt_hdf_inName.text() + ".tif"
 #                 QgsMessageLog.logMessage(str(output),"GPM TIFF output")
                 try:
-                    arg = "gdal_translate.exe HDF5:" + "\"" + str(datasouce) + "\"" + "://{0}/{1} -of GTiff {2}".format(self.txt_hdf5_inPath.text(), self.txt_hdf_inName.text(), output)
+#                     arg = "gdal_translate.exe HDF5:" + "\"" + str(datasouce) + "\"" + "://{0}/{1} -of GTiff {2}".format(self.txt_hdf5_inPath.text(), self.txt_hdf_inName.text(), output)
+                    arg ='gdal_translate.exe HDF5:"{0}"://{1}/{2} -of GTiff "{3}"'.format(str(datasouce),self.txt_hdf5_inPath.text(),self.txt_hdf_inName.text(),output)
                     sub.call(arg, shell=True)
 #                     os.system(arg)
 #                     QgsMessageLog.logMessage(str(arg),"GPM TIFF")
@@ -830,7 +830,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                     
                         Output = self.txt_output_clip.text() + "/" + str(area) + "/" + filename + "_Clip.tif"
                         try:
-                            arg = "gdal_translate.exe -a_srs epsg:4326 -projwin  " + Clip_area + " -of GTiff " + tif + " " + Output
+#                             arg = "gdal_translate.exe -a_srs epsg:4326 -projwin  " + Clip_area + " -of GTiff " + tif + " " + Output
+                            arg = 'gdal_translate.exe -a_srs epsg:4326 -projwin {0} -of GTiff "{0}" "{1}"'.format(Clip_area,tif,Output)   
 #                             QgsMessageLog.logMessage(str(arg),"GPM CLIP")
 #                             os.system(arg)
 #                             arg =[
@@ -895,8 +896,11 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                             # prj가 있는 shp는 문제가 있네
                             
 #                             -t_srs EPSG:4326 -tr {1} {2}
-                            arg = 'gdalwarp.exe -s_srs EPSG:4326 -t_srs EPSG:4326 -q -cutline {0} -crop_to_cutline -tr {1} {2} -dstalpha -of GTiff "{3}" "{4}"'.format(
-                                "\"" + str(self.txt_Shape_path.text()) + "\"", str(clipWidth), str(clipHeight), tif, Output)
+#                             arg = 'gdalwarp.exe -s_srs EPSG:4326 -t_srs EPSG:4326 -q -cutline {0} -crop_to_cutline -tr {1} {2} -dstalpha -of GTiff "{3}" "{4}"'.format(
+#                                 "\"" + str(self.txt_Shape_path.text()) + "\"", str(clipWidth), str(clipHeight), tif, Output)
+                            arg = 'gdalwarp.exe -s_srs EPSG:4326 -t_srs EPSG:4326 -q -cutline "{0}" -crop_to_cutline -tr {1} {2} -dstalpha -of GTiff "{3}" "{4}"'.format(
+                                str(self.txt_Shape_path.text()),str(clipWidth),str(clipHeight),tif,Output)
+
 #                             clip_call = [osgeo4w,
 #                                          "gdalwarp.exe","-q","-cutline",str(self.txt_Shape_path.text()),
 #                                          "-crop_to_cutline",
@@ -994,7 +998,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                         try:
 #                             arg = "gdal_translate.exe -a_srs epsg:4326 -projwin  " +Clip_area + " -of GTiff "  +tif+ " " + Output
                             tif = tif.replace("\\", "/")
-                            arg = "gdal_translate.exe -a_srs EPSG:4326 -projwin  " + Clip_area + " -of GTiff " + tif + " " + Output
+#                             arg = "gdal_translate.exe -a_srs EPSG:4326 -projwin  " + Clip_area + " -of GTiff " + tif + " " + Output
+                            arg = 'gdal_translate.exe -a_srs EPSG:4326 -projwin  {0} -of GTiff "{1}" "{2}"'.format(str(Clip_area),tif,Output)
 #                             arg = [
 #                                 osgeo4w, "gdal_translate.exe",
 #                                "-a_srs","EPSG:4326","-projwin",
@@ -2379,23 +2384,23 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
     # 휴가 후 반영 ===============================================================
     
     # 배경 shp 관련 -- 이제 안씀.ㅎㅎㅎㅎ
-    def base_shp(self):
-#         sys.path.insert(0, os.path.dirname(os.path.realpath(__file__))+'/shp_tmp')
-        # 기본 값 임의 설정.
-#         self.shp_layer = "C:/Users/USER/.qgis2/python/plugins/GPM/shp_tmp/polyline.shp"
-        self.shp_layer = ""
-        self.txt_pngshp.setText(self.shp_layer)
-        base_shp = QgsVectorLayer(self.shp_layer, (os.path.basename(self.shp_layer)).split(".shp")[0], "ogr")
-#         QgsMapLayerRegistry.instance().addMapLayers([self.layer, base_map], False)
-        QgsMapLayerRegistry.instance().addMapLayer(base_shp, False)
-        self.gpm_canvas.setExtent(base_shp.extent())
-        self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(base_shp)])
+#     def base_shp(self):
+# #         sys.path.insert(0, os.path.dirname(os.path.realpath(__file__))+'/shp_tmp')
+#         # 기본 값 임의 설정.
+# #         self.shp_layer = "C:/Users/USER/.qgis2/python/plugins/GPM/shp_tmp/polyline.shp"
+#         self.shp_layer = ""
+#         self.txt_pngshp.setText(self.shp_layer)
+#         base_shp = QgsVectorLayer(self.shp_layer, (os.path.basename(self.shp_layer)).split(".shp")[0], "ogr")
+# #         QgsMapLayerRegistry.instance().addMapLayers([self.layer, base_map], False)
+#         QgsMapLayerRegistry.instance().addMapLayer(base_shp, False)
+#         self.gpm_canvas.setExtent(base_shp.extent())
+#         self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(base_shp)])
      
     # 1. polgin(유역도) shape file 선택 함수 
     def btn_baseShp_polygon(self):
         self.shp_layer_polygon = ""
         dir = os.path.dirname(sys.argv[0])
-        global select_SHP
+#         global select_SHP
 
         try:
             self.shp_layer_polygon = QFileDialog.getOpenFileName(self, "Select Shape file", dir, '*.shp *.SHP')
@@ -2406,7 +2411,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
     #         QgsMapLayerRegistry.instance().addMapLayers([self.layer, base_map], False)
                 QgsMapLayerRegistry.instance().addMapLayer(basepolygon, False)
 #                 self.gpm_canvas.setExtent(basepolygon.extent())
-                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(basepolygon)])
+#                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(basepolygon)])
+                self.gpm_canvas.zoomToFullExtent()
 #                 self.gpm_canvas.setExtent(base_shp.extent())
 #                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(base_shp)])
             # 파일 선택을 안해서 여전히 빈 값이면~
@@ -2424,7 +2430,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
     def btn_baseShp_line(self):
         self.shp_layer_line = ""
         dir = os.path.dirname(sys.argv[0])
-        global select_SHP
+#         global select_SHP
 
         try:
             self.shp_layer_line = QFileDialog.getOpenFileName(self, "Select Shape file", dir, '*.shp *.SHP')
@@ -2436,6 +2442,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 QgsMapLayerRegistry.instance().addMapLayer(baseLine, False)
 #                 self.gpm_canvas.setExtent(baseLine.extent())
 #                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLine)])
+                self.gpm_canvas.zoomToFullExtent()
 #                 self.gpm_canvas.setExtent(base_shp.extent())
 #                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(base_shp)])
             # 파일 선택을 안해서 여전히 빈 값이면~
@@ -2453,7 +2460,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
     def btn_baseShp_point(self):
         self.shp_layer_point = ""
         dir = os.path.dirname(sys.argv[0])
-        global select_SHP
+#         global select_SHP
 
         try:
             self.shp_layer_point = QFileDialog.getOpenFileName(self, "Select Shape file", dir, '*.shp *.SHP')
@@ -2465,6 +2472,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 QgsMapLayerRegistry.instance().addMapLayer(basePoint, False)
 #                 self.gpm_canvas.setExtent(basePoint.extent())
 #                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(basePoint)])
+                self.gpm_canvas.zoomToFullExtent()
             # 파일 선택을 안해서 여전히 빈 값이면~
             else:
                 self.shp_layer_point = ""
@@ -2480,63 +2488,77 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
     def savePng_base(self, canvas, raster, polygon, line, point, saveName):
 #     def savePng_base(self,canvas,raster,polygon, saveName):
         try:
-             
-            r_lyr = QgsRasterLayer(raster, ((os.path.basename(raster)).split(".png")[0]), "gdal")
-            
-#             self.shp_layer_polygon,self.shp_layer_line,self.shp_layer_point
-            
+             #여기가 지금 주먹구구식인데 나중에 다시 관리
+            self.rasterLayer = QgsRasterLayer(raster, ((os.path.basename(raster)).split(".png")[0]), "gdal")
+                        
+            #SHP 3개
             if polygon != "" and line != "" and point != "":
                 QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
                 baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
                 baseLayer_line = QgsVectorLayer(line, (os.path.basename(line)).split(".shp")[0], "ogr")
                 baseLayer_polygon = QgsVectorLayer(polygon, (os.path.basename(polygon)).split(".shp")[0], "ogr")
-                QgsMapLayerRegistry.instance().addMapLayers([r_lyr, baseLayer_polygon, baseLayer_line, baseLayer_point], False)
-                list_layer = [baseLayer_line, baseLayer_point, baseLayer_polygon, r_lyr]  # base layer가 위에
-            
+                QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer, baseLayer_polygon, baseLayer_line, baseLayer_point], False)
+                list_layer = [baseLayer_line, baseLayer_point, baseLayer_polygon, self.rasterLayer]  # base layer가 위에
+                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLayer_polygon),QgsMapCanvasLayer(baseLayer_line),QgsMapCanvasLayer(baseLayer_point),QgsMapCanvasLayer(self.rasterLayer)])
+                self.gpm_canvas.zoomToFullExtent()
+                
+            #SHP 1개 - Polygon만
             if polygon != "" and line == "" and point == "":
                 QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
                 baseLayer_polygon = QgsVectorLayer(polygon, (os.path.basename(polygon)).split(".shp")[0], "ogr")
-                QgsMapLayerRegistry.instance().addMapLayers([r_lyr, baseLayer_polygon], False)
-                list_layer = [baseLayer_polygon, r_lyr]  # base layer가 위에
-                
+                QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer, baseLayer_polygon], False)
+                list_layer = [baseLayer_polygon, self.rasterLayer]  # base layer가 위에
+                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLayer_polygon),QgsMapCanvasLayer(self.rasterLayer)])
+                self.gpm_canvas.zoomToFullExtent()
+            
+            #SHP 1개 - Line 만    
             if polygon == "" and line != "" and point == "":
                 QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
                 baseLayer_line = QgsVectorLayer(line, (os.path.basename(line)).split(".shp")[0], "ogr")
-                QgsMapLayerRegistry.instance().addMapLayers([r_lyr, baseLayer_line], False)
-                list_layer = [baseLayer_line, r_lyr]  # base layer가 위에
-                
+                QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer, baseLayer_line], False)
+                list_layer = [baseLayer_line, self.rasterLayer]  # base layer가 위에
+                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLayer_line),QgsMapCanvasLayer(self.rasterLayer)])
+                self.gpm_canvas.zoomToFullExtent()
+            
+            #SHP 1개 - Point만    
             if polygon == "" and line == "" and point != "":
                 QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
                 baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
-                QgsMapLayerRegistry.instance().addMapLayers([r_lyr, baseLayer_point], False)
-                list_layer = [baseLayer_point, r_lyr]  # base layer가 위에
+                QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer, baseLayer_point], False)
+                list_layer = [baseLayer_point, self.rasterLayer]  # base layer가 위에
+                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLayer_point),QgsMapCanvasLayer(self.rasterLayer)])
+                self.gpm_canvas.zoomToFullExtent()
                 
-#             if polygon !="" and line =="" and point !="":
-#                 QgsMessageLog.logMessage(str(polygon)+" "+str(line)+" "+str(point),"GPM IMG")
-#                 baseLayer_polygon = QgsVectorLayer(polygon,(os.path.basename(polygon)).split(".shp")[0],"ogr")
-#                 QgsMapLayerRegistry.instance().addMapLayers([r_lyr,baseLayer_polygon], False)
-#                 list_layer = [baseLayer_polygon,r_lyr]#base layer가 위에
-#                 
-#             if polygon =="" and line !="" and point=="":
-#                 QgsMessageLog.logMessage(str(polygon)+" "+str(line)+" "+str(point),"GPM IMG")
-#                 baseLayer_line = QgsVectorLayer(line,(os.path.basename(line)).split(".shp")[0],"ogr")
-#                 QgsMapLayerRegistry.instance().addMapLayers([r_lyr,baseLayer_line], False)
-#                 list_layer = [baseLayer_line,r_lyr]#base layer가 위에
-                
-#             QgsMapLayerRegistry.instance().addMapLayers([r_lyr,baseLayer], False)
-    #         QgsMapLayerRegistry.instance().addMapLayers([baseLayer,r_lyr], False)
-    #         Canvas_Tools(self.gpm_canvas)
-#             self.gpm_canvas.zoomToFullExtent()
-#             self.gpm_canvas.refresh()
-             
-    #         list_layer = [r_lyr,baseLayer_polygon,baseLayer_line,baseLayer_point]#base layer가 아래에
+            #SHP 2개 - polygon, line
+            if polygon !="" and line !="" and point =="":
+                baseLayer_polygon = QgsVectorLayer(polygon,(os.path.basename(polygon)).split(".shp")[0],"ogr")
+                baseLayer_line = QgsVectorLayer(line, (os.path.basename(line)).split(".shp")[0], "ogr")
+                QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer,baseLayer_polygon, baseLayer_line], False)
+                list_layer = [baseLayer_line,baseLayer_polygon, self.rasterLayer]  # base layer가 위에
+                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLayer_polygon),QgsMapCanvasLayer(baseLayer_line),QgsMapCanvasLayer(self.rasterLayer)])
+                self.gpm_canvas.zoomToFullExtent()
             
-#             list_layer = [baseLayer_polygon,r_lyr]
+            #SHP 2개 -  line, point
+            if polygon =="" and line !="" and point !="":
+                baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
+                baseLayer_line = QgsVectorLayer(line, (os.path.basename(line)).split(".shp")[0], "ogr")
+                QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer, baseLayer_line,baseLayer_point], False)
+                list_layer = [baseLayer_point,baseLayer_line, self.rasterLayer]  # base layer가 위에
+                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLayer_point),QgsMapCanvasLayer(baseLayer_line),QgsMapCanvasLayer(self.rasterLayer)])
+                self.gpm_canvas.zoomToFullExtent()
+            
+            #SHP 2개 - polygon, point
+            if polygon !="" and line =="" and point !="":
+                baseLayer_polygon = QgsVectorLayer(polygon,(os.path.basename(polygon)).split(".shp")[0],"ogr")
+                baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
+                QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer,baseLayer_polygon, baseLayer_point], False)
+                list_layer = [baseLayer_point,baseLayer_polygon, self.rasterLayer]  # base layer가 위에
+                self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLayer_polygon),QgsMapCanvasLayer(baseLayer_point),QgsMapCanvasLayer(self.rasterLayer)])
+                self.gpm_canvas.zoomToFullExtent()
+                 
             layers = [layer.id() for layer in list_layer]
             self.saveAScanvas(layers, saveName)
-#             self.gpm_canvas.refresh()
-#             self.gpm_canvas.zoomToFullExtent()
-#             extent = self.gpm_canvas.extent()
+
         
         except Exception as exc:
             QgsMapLayerRegistry.instance().removeMapLayers(layers)
@@ -2564,7 +2586,6 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         self.canvas_zoomFull()
         extent = self.gpm_canvas.extent()
         self.canvas_zoomFull()
-        QgsMessageLog.logMessage(str(extent), "GPM IMG")
 #             self.canvas_zoomFull()
           
         mapSettings = QgsMapSettings()

@@ -17,3 +17,12 @@ GPM-developer-v1.XX 는 개발자 버전.
 ## HISTORY
 ### 2019-03-14
 Make Image 기능 보완
+
+
+### 2019-03-15
+1. Make Image 기능 보완
+2. Total 
+- 한글 경로 차단
+- 경로 내 띄어쓰기 보완
+
+

@@ -7,10 +7,10 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=GPM_developer_v29
+name=GPM_developer_v30
 qgisMinimumVersion=2.0
 description=GPM_developer
-version=0.0.1.29
+version=0.0.1.30
 author=Hermesys
 email=mhcho058@hermesys.co.kr
 
@@ -24,10 +24,13 @@ repository=https://github.com/floodmodel/GPM/releases
 
 # Uncomment the following line and add your changelog:
 changelog= 
-	2019-03-14
+	2019-03-15
 	Make Image 기능 보완.
-	1) 3개의 SHP 배경 사용 가능
-	2) 마지막에 Load 된 SHP 에 ZOOM IN 되는 현상 해소
+	1) N개(3개, 2개, 1개) SHP 배경 사용 가능
+	
+	전체 기능 보완
+	1) 저장 폴더 띄어쓰기(공백) 가능
+	2) 한글 경로 차단
 
 	
 		

@@ -54,6 +54,10 @@ import transpose_Tiff as tr_Tiff
 # import shlex
 import Canvas_Tools
 
+# sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib/wget')
+# import Get_processList
+from win32com.client import GetObject
+
 _iface = {}
 # 2018-08-06 박: 기능 테스트로 임시 추가 
 # function 기능으로 추가 테스트중
@@ -217,11 +221,12 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         _layers = GPM._iface.legendInterface().layers()
         
         # wget_data download
-#         self.userOS=""
-        self.rdo_64.setChecked(True)  # 2019-03-13 필리핀 교육에서 32bit os가 등장해서 개발버전에서만 추가함.
-        self.rdo_64.clicked.connect(self.Rdo_Selected_wget)
-        self.rdo_32.clicked.connect(self.Rdo_Selected_wget)
-        self.btn_bat_path.clicked.connect(self.wget_save_path)
+# #         self.userOS=""
+#         self.rdo_64.setChecked(True)  # 2019-03-13 필리핀 교육에서 32bit os가 등장해서 개발버전에서만 추가함.
+#         self.rdo_64.clicked.connect(self.Rdo_Selected_wget)
+#         self.rdo_32.clicked.connect(self.Rdo_Selected_wget)
+#         self.btn_bat_path.clicked.connect(self.wget_save_path)
+        self.btn_bat_path.clicked.connect(lambda :self.Select_Folder_Dialog(self.txt_bat_path)) 
         self.btn_datadownload.clicked.connect(self.wget_create_bat)
 
         # png_canvas, Canvas 추가함.
@@ -2493,7 +2498,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                         
             #SHP 3개
             if polygon != "" and line != "" and point != "":
-                QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
+#                 QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
                 baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
                 baseLayer_line = QgsVectorLayer(line, (os.path.basename(line)).split(".shp")[0], "ogr")
                 baseLayer_polygon = QgsVectorLayer(polygon, (os.path.basename(polygon)).split(".shp")[0], "ogr")
@@ -2504,7 +2509,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 
             #SHP 1개 - Polygon만
             if polygon != "" and line == "" and point == "":
-                QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
+#                 QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
                 baseLayer_polygon = QgsVectorLayer(polygon, (os.path.basename(polygon)).split(".shp")[0], "ogr")
                 QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer, baseLayer_polygon], False)
                 list_layer = [baseLayer_polygon, self.rasterLayer]  # base layer가 위에
@@ -2513,7 +2518,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             
             #SHP 1개 - Line 만    
             if polygon == "" and line != "" and point == "":
-                QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
+#                 QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
                 baseLayer_line = QgsVectorLayer(line, (os.path.basename(line)).split(".shp")[0], "ogr")
                 QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer, baseLayer_line], False)
                 list_layer = [baseLayer_line, self.rasterLayer]  # base layer가 위에
@@ -2522,7 +2527,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             
             #SHP 1개 - Point만    
             if polygon == "" and line == "" and point != "":
-                QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
+#                 QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
                 baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
                 QgsMapLayerRegistry.instance().addMapLayers([self.rasterLayer, baseLayer_point], False)
                 list_layer = [baseLayer_point, self.rasterLayer]  # base layer가 위에
@@ -2772,39 +2777,78 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         if self.rdo_32.isChecked() == True:
             self.userOS = "32bit"
     
-    def wget_save_path(self):
-        global wget_folder
-        wget_path = os.path.dirname(sys.argv[0])
-        wget_folder = (QFileDialog.getExistingDirectory(self, "Select Output Directory", wget_path))
-        self.txt_bat_path.setText(wget_folder)
+#     def wget_save_path(self):
+#         global wget_folder
+#         wget_path = os.path.dirname(sys.argv[0])
+#         wget_folder = (QFileDialog.getExistingDirectory(self, "Select Output Directory", wget_path))
+#         self.txt_bat_path.setText(wget_folder)
     
     def wget_create_bat(self):
 #         QgsMessageLog.logMessage(str(self.userOS),"WGET")
         try:
+            
             self.wget_progress.setValue(0)
             
 #             QgsMessageLog.logMessage(str(self.txt_userID.text())+"\n"+str(self.txt_userPW.text()),"GPM WGET")
             userId = self.txt_userID.text() ; userPw = self.txt_userPW.text()
-            datadownlod = wget.wget_download(str(self.userOS), userId, userPw, self.start_date.text(), self.end_date.text(), wget_folder)
-#             QgsMessageLog.logMessage(str(self.userOS),"WGET")
+#             datadownlod = wget.wget_download(str(self.userOS), userId, userPw, self.start_date.text(), self.end_date.text(), self.txt_bat_path.text())
+            datadownlod = wget.create_bat_script_64(userId, userPw, self.start_date.text(), self.end_date.text(), self.txt_bat_path.text())
+            
+            self.wget_progress.setMaximum(len(datadownlod))   
+#             QgsMessageLog.logMessage(str(len(datadownlod)),"WGET")
             
             count = 0
             for down in datadownlod:
-                 
-                count = (count + 1)
+                count = count +1
                 self.wget_progress.setValue(count)
+#                 QgsMessageLog.logMessage(str(self.getProcessList()),"WGET 1")
                 sub.call(down, shell=True)  # 자동 수행 2019-03-12
-             
-            sleep(0.5)
-            self.wget_progress.setMaximum(len(datadownlod))   
+                sleep(0.5)
+            _util.MessageboxShowInfo("GPM", "Check download folder.")
+                
+#                 QgsMessageLog.logMessage(str(self.getProcessList()),"WGET 2")
+                #                 if Get_processList.getProcessList() != 100:
+                
+#                 QgsMessageLog.logMessage(str(down),"WGET")
+                
+    #                 sleep(0.5)
+#                 elif Get_processList.getProcessList() == 100:
+#                     QgsMessageLog.logMessage(str(Get_processList.getProcessList()),"WGET 2")
+#                     self.wget_progress.setValue(len(datadownlod))
+#                     self.wget_progress.setValue(len(datadownlod))
+    #                 os.system(down)
+#             sleep(0.5)
+            
                 
 #                 os.system(down)
 #                 QgsMessageLog.logMessage(str(down),"WGET")
 #             os.system(datadownlod)
+        
 #             _util.MessageboxShowInfo("GPM", "A batch file was created on the desktop.")
-            _util.MessageboxShowInfo("GPM", ("바탕화면에 GPM_data_download.bat 파일이 생성되었습니다.").decode('utf-8'))
+#             _util.MessageboxShowInfo("GPM", ("바탕화면에 GPM_data_download.bat 파일이 생성되었습니다.").decode('utf-8'))
         except Exception as e:
             _util.MessageboxShowError("GPM WGET", str(e))    
+    
+    
+#     # wget 폴더에 파일이 몇 개 들어왔는지...
+#     def getProcessList(self):
+#         PROCESS_LIST=[]
+#         getObj = GetObject('winmgmts:')
+#         processes= getObj.InstancesOf('Win32_Process')
+#         for ps in processes:
+#             if ("wget.exe" in (ps.Properties_('Name').Value)):
+#                 PROCESS_LIST.append((ps.Properties_('Name').Value))
+#         
+#             if len(PROCESS_LIST)==0:
+#                 return "100"
+#             else:
+#                 return "-1"
+    
+    
+    
+    
+    
+    
         
 #     def wget_create_bat(self):
 #         try:

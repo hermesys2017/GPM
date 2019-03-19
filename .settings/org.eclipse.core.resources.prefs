@@ -1,6 +1,10 @@
 eclipse.preferences.version=1
 encoding//Lib/Canvas_Tools.py=utf-8
+encoding//Lib/make_Image/Add_BaseLayerToPng.py=utf-8
+encoding//Lib/make_Image/Make_Image.py=utf-8
+encoding//Lib/make_Image/savePng_baselayer.py=utf-8
 encoding//Lib/transpose_Tiff.py=utf-8
+encoding//Lib/wget/Get_processList.py=utf-8
 encoding/Dict.py=utf-8
 encoding/GPM.py=utf-8
 encoding/GPM_dialog.py=utf-8

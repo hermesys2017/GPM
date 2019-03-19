@@ -7,30 +7,28 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=GPM_developer_v30
+name=GPM_developer_v31
 qgisMinimumVersion=2.0
 description=GPM_developer
-version=0.0.1.30
+version=0.0.1.31
 author=Hermesys
 email=mhcho058@hermesys.co.kr
 
 about=GPM, 개발자용, 배포된 플러그인과 차이가 있음. 반영된 것이 있고, 안 된 것이 있으므로 구분바람.
 
 #tracker=http://bugs
-repository=https://github.com/floodmodel/GPM/releases
+repository=https://github.com/hermesys2017/GPM_2018/releases
 # End of mandatory metadata
 
 # Recommended items:
 
 # Uncomment the following line and add your changelog:
 changelog= 
-	2019-03-15
-	Make Image 기능 보완.
-	1) N개(3개, 2개, 1개) SHP 배경 사용 가능
-	
-	전체 기능 보완
-	1) 저장 폴더 띄어쓰기(공백) 가능
-	2) 한글 경로 차단
+	2019-03-19
+	Data Download
+		다운로드 바로 되도록..
+		다운로드 바 처리, for 문이 다 돌게 되면 message box 출력시켰음.
+
 
 	
 		

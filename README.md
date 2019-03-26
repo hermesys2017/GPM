@@ -3,9 +3,8 @@
 ## 구분
 GPM-v0.XX 는 내부 테스트 버전.
 
-plugins url : http://210.92.123.135/plugins.xml
-
-GPM-v0.28 부터 적용
+<!--plugins url : http://210.92.123.135/plugins.xml
+GPM-v0.28 부터 적용!-->
 
 GPM-developer-v1.XX 는 개발자 버전.
 

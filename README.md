@@ -3,8 +3,12 @@
 ## 구분
 GPM-v0.XX 는 내부 테스트 버전.
 
-plugins url : http://210.92.123.135/GPM/plugins.xml
-GPM-v0.28 부터 적용
+https://github.com/floodmodel/GPM/wiki/Release-Plan-v2019.4.17
+
+다음 규칙에 따라 내부테스트 버전은 이 저장소에 올라오지 않음(2019/04/17)
+
+<!-- plugins url : http://210.92.123.135/GPM/plugins.xml
+ GPM-v0.28 부터 적용--!>
 
 GPM-developer-v1.XX 는 개발자 버전.
 

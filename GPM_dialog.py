@@ -39,9 +39,11 @@ import Dict
 import Dict_Clip as dCilp
 import GPM
 import csv
+from manual_view import manual_webview
 # from PyQt4.QtGui import QFileDialog
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib')
+
 import imageio
 import OneFileCorrection_class as OneFile
 import coordinate_class
@@ -51,14 +53,16 @@ import time
 import ProgressBar
 import wget
 import transpose_Tiff as tr_Tiff
+
 # import shlex
 import Canvas_Tools
 
 # sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib/wget')
 # import Get_processList
+
 from win32com.client import GetObject
 
-_iface = {}
+# _iface = {}
 # 2018-08-06 박: 기능 테스트로 임시 추가 
 # function 기능으로 추가 테스트중
 import qgis
@@ -126,6 +130,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 
         # 초기 설정
         self.Setini()
+        self.setting_manual()
         # Clip 영역 테이블 레이어 셋팅
 #         self.Set_Clip_table_layerlist()
         
@@ -214,7 +219,25 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         self.btn_select_save_path_imag.clicked.connect(lambda:self.saveFileDialog("GIF"))
         self.btn_make_gif_file.clicked.connect(self.Make_gif_user)
         #--------------------연대 모듈 끝-------------------------------------------
-
+    #manual webveiwer setting
+    def setting_manual(self):
+        self.dialog_instance = manual_webview()
+        
+    def manual_open(self):
+        self.dialog_instance.show()
+        result = self.dialog_instance.exec_()
+        if result:
+            pass
+    
+#     def setting_manual(self,_iface):
+#         self.dialog_instance = manual()
+# #         QgsMessageLog.logMessage(str(self.dialog_instance),"MANUAL")
+#         self.dialog_instance.exec_()   
+    
+#     def show_dialog(self):
+#        self.dialog_instance.exec_()   
+        
+    
     def Setini(self):
         
         global _layers
@@ -1650,7 +1673,29 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                             "--outfile", str(path + "/" + str(os.path.basename(self.func_list[idx.row()])) + "_function.tif"), "--NoDataValue", str(Nodata)]
                 QgsMessageLog.logMessage(str(call_arg), "GPM FUNC")
                 sub.call(call_arg, shell=True)
-               
+            
+        #=================GPM 배포 버전 =====================
+#             entries = [] #참조된 레이어 리스트
+#             for lyr in _layers:
+#                 QgsMessageLog.logMessage(str(_layers),"GPM FUNCTION") 
+#                 if (lyr.type()==QgsMapLayer.RasterLayer):
+#                     ras = QgsRasterCalculatorEntry()
+#                     if (lyr.name()) in select_list:
+#     #                 ras.ref = lyr.name()+"@1"
+#                         ras.ref = "X@1"
+#                         ras.raster = lyr
+#                         ras.bandNumber = 1
+#                         entries.append( ras )
+#                         #QgsMessageLog.logMessage(str(entries),"gpm func")
+#     #        
+#     #                     #calc = QgsRasterCalculator( '(ras@1 / ras@1) * ras@1', path + lyr.name() + "_suffix.tif", 'GTiff', lyr.extent(), lyr.width(), lyr.height(), entries )
+#                         calc = QgsRasterCalculator( calculus, path+"/"+lyr.name()+"_function.tif", 'GTiff', lyr.extent(), lyr.width(), lyr.height(), entries )
+#                         calc.processCalculation()
+#             _util.MessageboxShowInfo("GPM","Complete Raster Calculator.")
+#=========================GPM 배포 버전 END =====================
+
+
+
 #             for lyr in (self.func_list):
 #                 ras = QgsRasterCalculatorEntry()
 #                 ras.ref = "X@1"
@@ -1692,10 +1737,13 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 
         count = 0 ; self.func_list = []
         for layer in _layers:
-            self.tlb_Function.insertRow(count)
-            self.tlb_Function.setItem(count, 0, QTableWidgetItem(layer.name() + "@1"))
-            self.func_list.append(layer.name())
-            count = count + 1
+            #이 곳에서 리스트 목록에 올라가는 것은 Raster, TIFF 로 제한 둘 것.
+#             QgsMessageLog.logMessage(str(layer.type()==QgsMapLayer.RasterLayer),"GPM FUNCTION") #1 = Raster, 2 = vector
+            if (layer.type()==QgsMapLayer.RasterLayer):
+                self.tlb_Function.insertRow(count)
+                self.tlb_Function.setItem(count, 0, QTableWidgetItem(layer.name()+"@1"))
+                self.func_list.append(layer.name())
+                count=count+1
 
         # 테이블 데이터 수정 못하게 옵션
         self.tlb_Function.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -1788,6 +1836,10 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         item8 = QtGui.QTreeWidgetItem(self.treeWidget, ['Make Image'])
         icon = QtGui.QIcon(settings_icon)
         item8.setIcon(0, icon)
+        item10 = QtGui.QTreeWidgetItem(self.treeWidget, ['Help'])
+        info_icon = path + '\image\information.png'  # TEST
+        icon = QtGui.QIcon(info_icon)
+        item10.setIcon(0, icon)
 
         self.mainLayout = QtGui.QGridLayout(self)
         self.mainLayout.addWidget(self.treeWidget)
@@ -1819,10 +1871,13 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 self.tabWidget.setCurrentIndex(10)
             elif SelectItme == 'Data Download':
                 self.tabWidget.setCurrentIndex(0)
+            elif SelectItme == 'Help':
+                self.manual_open()
+#                 self.tabWidget.setCurrentIndex(11)
 
         except Exception as es:
             _util.MessageboxShowError("Error message", str(es))
-
+    
         #--------------------------------연대 모듈 연동 --------------------------------------------------------
 #     def Save_gif_path(self):
 #         filename = QFileDialog.getSaveFileName(self, "select output file ", "", "*.gif")
@@ -2033,8 +2088,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #             QgsMessageLog.logMessage(str(AreaCoord),"GPM AreaCoord")
                 
             i = 1
-            global _CSV_filename
-            del _CSV_filename[:]
+            self._CSV_filename=[]
+            del self._CSV_filename[:]
             for row in (reader_csv):
                 getfile = _util.GetFilename(str(row[0]))
                 create_csv = open(select_file_path + "/{0}.csv".format(getfile), 'w+')
@@ -2046,9 +2101,9 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 self.lisw_Convert_file.insertRow(counts)
                 self.lisw_Convert_file.setItem(counts, 0, QTableWidgetItem(select_file_path + "/{0}.csv".format(getfile)))
                 
-                global _CSV_filename
+#                 global _CSV_filename
                 
-                _CSV_filename.append(select_file_path + "/{0}.csv".format(getfile))
+                self._CSV_filename.append(select_file_path + "/{0}.csv".format(getfile))
                 
                 j = 0
                 for cols in row[i:]:
@@ -2136,7 +2191,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
     def Apply_all_correction(self):
 #         if len(_ASC_filename) != len(select_file):
         # 위성 격자와 지상 관측 데이터의 수가 일치해야 함.
-        if len(_ASC_filename) != len(_CSV_filename):
+        if len(_ASC_filename) != len(self._CSV_filename):
             _util.MessageboxShowInfo("GPM NOTICE", "Number of CSV FILES and ASC FILES do not match.")
 #             QgsMessageLog.logMessage("Number of CSV FILES and ASC FILES do not match.","GPM NOTICE")
             return
@@ -2155,10 +2210,10 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             self.decimalChanged()
 #             run_correction = _corr.run_correction(output_folder, _ASC_filename, select_file, _decimal)
 #             run_correction = _corr.run_correction(output_folder, _ASC_filename, _CSV_filename, _decimal)
-            QgsMessageLog.logMessage("decimal : " + str(_decimal) + " \n" + str(_ASC_filename) + "\n" + str(_CSV_filename) + "\n" + self.txtOutputDataPath.text() + "\n", "GPM APPLY ALL")
+#             QgsMessageLog.logMessage("decimal : " + str(_decimal) + " \n" + str(_ASC_filename) + "\n" + str(_CSV_filename) + "\n" + self.txtOutputDataPath.text() + "\n", "GPM APPLY ALL")
             
             # 연세대 보정 알고리즘 코드로 진입
-            run_correction = _corr.run_correction(self.txtOutputDataPath.text(), (_ASC_filename), (_CSV_filename), _decimal)
+            run_correction = _corr.run_correction(self.txtOutputDataPath.text(), (_ASC_filename), (self._CSV_filename), _decimal)
             
             # 보정 시 측정 시간
             QgsMessageLog.logMessage("corr 1 : " + "%s" % (time.time() - start_time_GPM), "GPM Satellite")
@@ -2171,7 +2226,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             self.Find_ASC_CRS(dirpath)
 #             for count in range(len(select_file)):
             count = 0
-            for count in range(len(_CSV_filename)):
+            for count in range(len(self._CSV_filename)):
                 if self.chk_AddLayer.isChecked():
 #                     QgsMessageLog.logMessage(self.txtOutputDataPath.text() + "/" + (os.path.split(os.path.splitext(_ASC_filename[count])[0])[1])+
 #                                              ("_satellite_correction.asc"),"GPM _CSVFILENAME")
@@ -2263,7 +2318,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                 if self.chk_AddLayer.isChecked():
                     self.Addlayer_OutputFile(
                         output_folder + "\\" + (os.path.basename(_ASC_filename[count]).split(".")[0]) + "_" + (
-                            os.path.basename(_CSV_filename[count]).split(".")[0]) + ".asc")
+                            os.path.basename(self._CSV_filename[count]).split(".")[0]) + ".asc")
                 count = count + 1
 #             _util.MessageboxShowInfo("Process Information","performed {0} files. \n{1}".format(len(_ASC_filename), str(run_correction)))
 

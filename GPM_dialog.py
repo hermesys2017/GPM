@@ -356,6 +356,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         # function 
         self.btn_input_function.clicked.connect(self.select_files_func)
         self.btn_apply_Function.clicked.connect(self.Fun_apply_Click)
+#         self.btn_reload_layer.clicked.connect(self.refresh_run)
         # 테이블 데이터 셋팅
 #         self.Set_table_list_fun()
          
@@ -513,6 +514,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         Folder = str(QFileDialog.getExistingDirectory(self, "Select Directory", 'c://'))
         if _util.CheckKorea(Folder):
             _util.MessageboxShowInfo("GPM","Check Path, No used Korean.\nPlease use English.")
+            return
         
         if _util.CheckFolder(Folder):
             txt.setText(Folder)
@@ -686,13 +688,13 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #                     Output = file.replace(filename, filename + "_Convert")
                     
                     # 2018-11-15 numpy 사용으로 변경
-                    # transpose_TIFF =  _tr_Tiff.img_to_array(file,Output)
+                    transpose_TIFF =  _tr_Tiff.img_to_array(file,Output)
     #                2018-09-16 JO : 원exe2 사용
-                    converter_exe = os.path.dirname(os.path.abspath(__file__)) + "/Lib/kict_sra_gpm_converter\KICT_SRA_GPM_Converter.exe" 
-                    call_convert = sub.call([converter_exe, file, Output], shell=True)
+#                     converter_exe = os.path.dirname(os.path.abspath(__file__)) + "/Lib/kict_sra_gpm_converter\KICT_SRA_GPM_Converter.exe" 
+#                     call_convert = sub.call([converter_exe, file, Output], shell=True)
                     # 정상적으로 수행이 된 경우 0, 이 경우 파일을 삭제
-                    if call_convert == 0 :
-                        os.remove(file)
+#                     if call_convert == 0 :
+#                         os.remove(file)
                     
                     # 2018-10-17 : JO - output 파일이 실존하면 리스트에 추가되도록 수정함. 
                     try:
@@ -711,9 +713,9 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
             except Exception as e:
                 _util.MessageboxShowInfo("GPM", str(e))
             
-            if call_convert == 0 :
-                    # step1 폴더 삭제...
-                os.rmdir(os.path.dirname(file))
+#             if call_convert == 0 :
+#                     # step1 폴더 삭제...
+#                 os.rmdir(os.path.dirname(file))
 #             self.calc((len(self.hdf_convert_tiff)*1000), (len(self.hdf_convert_tiff)*2000))
 #             self.calc(len(self.hdf_convert_tiff)*5)
             # clip 준비... 2018-10-15 신설
@@ -1113,8 +1115,9 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #             s_srs = _Dict.UTM_dic[str(source)]
             t_srs = _Dict.UTM_dic[str(target)]
 
-            utm_count = 0
+            utm_count = 0 ; fail_list=[]
             for file in list:
+                self.read_Layer_Get_Noadta(file)
                 filename = _util.GetFilename(file)
                 Output = self.txt_output_utm.text() + "/" + filename + "_UTM.tif" 
 #                 
@@ -1123,20 +1126,30 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #                 arg =path+ " -overwrite -s_srs "+ "\"" + s_srs +"\""+ " -t_srs "+"\"" + t_srs +"\"" + "-of GTiff "
 # #                 gdalwarp.exe -s_srs " + " " + s_srs +" -t_srs " + " "+t_srs + " "
 #                 arg = arg +" "+ file +" " + Output
-                
+#                 QgsMessageLog.logMessage("{0} : {1}".format(filename,str(self.Projection)),"UTM")
+#                 if ((self.Projection).upper() != " EPSG:4326"):
+# #                     fail_list.append(file)
+#                     
+# #                     pass
+#                     _util.MessageboxShowInfo("GPM","Failed to perform normally.\n Assign projection.")
+#                     self.utm_progressBar.setValue(0)
+#                     return
+#                 else:
                 # gdalwarp.exe가 QGIS에도 있으므로... 굳이 경로 다 안써도 됨..;; _ JO                
                 arg = 'gdalwarp -overwrite -t_srs ' + "\"" + t_srs + "\"" + (' -of GTiff "{0}" "{1}"').format(file, Output)
-                
+            
                 exe = _util.Execute(arg)
                 if (exe != 0):
                     _util.MessageboxShowInfo("GPM", "Failed to perform normally.")
                     self.utm_progressBar.setValue(0)
                     break
+                
                 elif (exe == 0): 
                     sleep(1)
                     utm_count = utm_count + 1
                     self.utm_progressBar.setValue(utm_count)
                     sleep(1)
+#                     _util.MessageboxShowInfo("GPM","Failed to perform normally.\nCount files : {0}\n Assign projection.".format(str(len(fail_list))))
                 
 #             _util.MessageboxShowInfo("GPM","Complete convert UTM.")
 #                 _util.ConvertUTM(file,Output,s_srs,t_srs)
@@ -1799,84 +1812,7 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         except Exception as e:
             _util.MessageboxShowError("Error message", str(e))
 
-    # 트리 위젯에 메뉴 항목 설정
-    def Set_treeWidget(self):
-        self.treeWidget.setHeaderHidden(True)
-        item9 = QtGui.QTreeWidgetItem(self.treeWidget, ['Data Download'])
-        Data_icon = path + '\image\data.png'  # TEST
-        icon = QtGui.QIcon(Data_icon)
-        item9.setIcon(0, icon)
-        item = QtGui.QTreeWidgetItem(self.treeWidget, ['HDF5_Convert'])
-        icon = QtGui.QIcon(settings_icon)
-        item.setIcon(0, icon)
-        item0 = QtGui.QTreeWidgetItem(self.treeWidget, ['Clip'])
-        icon = QtGui.QIcon(settings_icon)
-        item0.setIcon(0, icon)
-        item1 = QtGui.QTreeWidgetItem(self.treeWidget, ['UTM'])
-        icon = QtGui.QIcon(settings_icon)
-        item1.setIcon(0, icon)
-        item2 = QtGui.QTreeWidgetItem(self.treeWidget, ['Resampling'])
-        icon = QtGui.QIcon(settings_icon)
-        item2.setIcon(0, icon)
-        item3 = QtGui.QTreeWidgetItem(self.treeWidget, ['Accum'])
-        icon = QtGui.QIcon(settings_icon)
-        item3.setIcon(0, icon)
-        item4 = QtGui.QTreeWidgetItem(self.treeWidget, ['Make CSV'])
-        icon = QtGui.QIcon(settings_icon)
-        item4.setIcon(0, icon)
-        item5 = QtGui.QTreeWidgetItem(self.treeWidget, ['Function'])
-        icon = QtGui.QIcon(settings_icon)
-        item5.setIcon(0, icon)
-        item6 = QtGui.QTreeWidgetItem(self.treeWidget, ['Make ASC'])
-        icon = QtGui.QIcon(settings_icon)
-        item6.setIcon(0, icon)
-        item7 = QtGui.QTreeWidgetItem(self.treeWidget, ['Satellitecorrection'])
-        icon = QtGui.QIcon(settings_icon)
-        item7.setIcon(0, icon)
-        item8 = QtGui.QTreeWidgetItem(self.treeWidget, ['Make Image'])
-        icon = QtGui.QIcon(settings_icon)
-        item8.setIcon(0, icon)
-        item10 = QtGui.QTreeWidgetItem(self.treeWidget, ['Help'])
-        info_icon = path + '\image\information.png'  # TEST
-        icon = QtGui.QIcon(info_icon)
-        item10.setIcon(0, icon)
-
-        self.mainLayout = QtGui.QGridLayout(self)
-        self.mainLayout.addWidget(self.treeWidget)
-        self.treeWidget.itemDoubleClicked.connect(self.OnDoubleClick)
-
-    # 메뉴 트리 목록에서 아이템 클릭했을때 이벤트 처리
-    def OnDoubleClick(self, item):
-        try:
-            SelectItme = item.text(0)
-            if SelectItme == 'HDF5_Convert':
-                self.tabWidget.setCurrentIndex(1)
-            if SelectItme == 'Clip':
-                self.tabWidget.setCurrentIndex(2)
-            elif SelectItme == "UTM":
-                self.tabWidget.setCurrentIndex(3)
-            elif SelectItme == "Resampling":
-                self.tabWidget.setCurrentIndex(4)
-            elif SelectItme == "Accum":
-                self.tabWidget.setCurrentIndex(5)
-            elif SelectItme == 'Make CSV':
-                self.tabWidget.setCurrentIndex(6)
-            elif SelectItme == 'Function':
-                self.tabWidget.setCurrentIndex(7)
-            elif SelectItme == 'Make ASC':
-                self.tabWidget.setCurrentIndex(8)
-            elif SelectItme == 'Satellitecorrection':
-                self.tabWidget.setCurrentIndex(9)
-            elif SelectItme == 'Make Image':
-                self.tabWidget.setCurrentIndex(10)
-            elif SelectItme == 'Data Download':
-                self.tabWidget.setCurrentIndex(0)
-            elif SelectItme == 'Help':
-                self.manual_open()
-#                 self.tabWidget.setCurrentIndex(11)
-
-        except Exception as es:
-            _util.MessageboxShowError("Error message", str(es))
+    
     
         #--------------------------------연대 모듈 연동 --------------------------------------------------------
 #     def Save_gif_path(self):
@@ -1933,6 +1869,10 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         kict_logo = os.path.dirname(os.path.abspath(__file__)) + "/icon/GPM_developer_small.png"
 #         self.kict_logo.setIcon(QtGui.QIcon(kict_logo))
         self.kict_logo.setPixmap(QtGui.QPixmap(kict_logo))
+        
+        #refresh 버튼
+        btn_refresh_icon = os.path.dirname(os.path.abspath(__file__)) + "/icon/refresh.png"
+        self.btn_reload_layer.setIcon(QtGui.QIcon(btn_refresh_icon))
 
     # 레이어 목록 혹은 파일 목록사용여부 라디오버튼
     def Select_radio_event(self):
@@ -2427,6 +2367,15 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #             QMessageBox.Warning(None, "Notice", str(ex))
 
     #===========Make image ============
+	#raster 읽어서 nodata 불러오기
+    def read_Layer_Get_Noadta(self,ratserLayer):
+        self.Nodata="";self.Projection=""
+        tiff_ds = gdal.Open(ratserLayer)
+        self.Nodata = tiff_ds.GetRasterBand(1) .GetNoDataValue()
+        prj = tiff_ds.GetProjection()
+        srs=osr.SpatialReference(wkt=prj)
+        self.Projection = srs.GetAttrValue('authority',0)+":"+srs.GetAttrValue('authority',1)
+
     def make_png(self, asc_path, png_path):
         color_path = os.path.dirname(os.path.realpath(__file__)) + "/Color/color.txt"
 #         arg = "gdaldem.exe color-relief " + asc_path + " " + color_path + " " + png_path
@@ -2884,6 +2833,85 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         except Exception as e:
             _util.MessageboxShowError("GPM WGET", str(e))    
     
+    
+    # 트리 위젯에 메뉴 항목 설정
+    def Set_treeWidget(self):
+        self.treeWidget.setHeaderHidden(True)
+        item9 = QtGui.QTreeWidgetItem(self.treeWidget, ['Data Download'])
+        Data_icon = path + '\image\data.png'  # TEST
+        icon = QtGui.QIcon(Data_icon)
+        item9.setIcon(0, icon)
+        item = QtGui.QTreeWidgetItem(self.treeWidget, ['HDF5_Convert'])
+        icon = QtGui.QIcon(settings_icon)
+        item.setIcon(0, icon)
+        item0 = QtGui.QTreeWidgetItem(self.treeWidget, ['Clip'])
+        icon = QtGui.QIcon(settings_icon)
+        item0.setIcon(0, icon)
+        item1 = QtGui.QTreeWidgetItem(self.treeWidget, ['UTM'])
+        icon = QtGui.QIcon(settings_icon)
+        item1.setIcon(0, icon)
+        item2 = QtGui.QTreeWidgetItem(self.treeWidget, ['Resampling'])
+        icon = QtGui.QIcon(settings_icon)
+        item2.setIcon(0, icon)
+        item3 = QtGui.QTreeWidgetItem(self.treeWidget, ['Accum'])
+        icon = QtGui.QIcon(settings_icon)
+        item3.setIcon(0, icon)
+        item4 = QtGui.QTreeWidgetItem(self.treeWidget, ['Make CSV'])
+        icon = QtGui.QIcon(settings_icon)
+        item4.setIcon(0, icon)
+        item5 = QtGui.QTreeWidgetItem(self.treeWidget, ['Function'])
+        icon = QtGui.QIcon(settings_icon)
+        item5.setIcon(0, icon)
+        item6 = QtGui.QTreeWidgetItem(self.treeWidget, ['Make ASC'])
+        icon = QtGui.QIcon(settings_icon)
+        item6.setIcon(0, icon)
+        item7 = QtGui.QTreeWidgetItem(self.treeWidget, ['Satellitecorrection'])
+        icon = QtGui.QIcon(settings_icon)
+        item7.setIcon(0, icon)
+        item8 = QtGui.QTreeWidgetItem(self.treeWidget, ['Make Image'])
+        icon = QtGui.QIcon(settings_icon)
+        item8.setIcon(0, icon)
+        item10 = QtGui.QTreeWidgetItem(self.treeWidget, ['Help'])
+        info_icon = path + '\image\information.png'  # TEST
+        icon = QtGui.QIcon(info_icon)
+        item10.setIcon(0, icon)
+
+        self.mainLayout = QtGui.QGridLayout(self)
+        self.mainLayout.addWidget(self.treeWidget)
+        self.treeWidget.itemDoubleClicked.connect(self.OnDoubleClick)
+
+    # 메뉴 트리 목록에서 아이템 클릭했을때 이벤트 처리
+    def OnDoubleClick(self, item):
+        try:
+            SelectItme = item.text(0)
+            if SelectItme == 'HDF5_Convert':
+                self.tabWidget.setCurrentIndex(1)
+            if SelectItme == 'Clip':
+                self.tabWidget.setCurrentIndex(2)
+            elif SelectItme == "UTM":
+                self.tabWidget.setCurrentIndex(3)
+            elif SelectItme == "Resampling":
+                self.tabWidget.setCurrentIndex(4)
+            elif SelectItme == "Accum":
+                self.tabWidget.setCurrentIndex(5)
+            elif SelectItme == 'Make CSV':
+                self.tabWidget.setCurrentIndex(6)
+            elif SelectItme == 'Function':
+                self.tabWidget.setCurrentIndex(7)
+            elif SelectItme == 'Make ASC':
+                self.tabWidget.setCurrentIndex(8)
+            elif SelectItme == 'Satellitecorrection':
+                self.tabWidget.setCurrentIndex(9)
+            elif SelectItme == 'Make Image':
+                self.tabWidget.setCurrentIndex(10)
+            elif SelectItme == 'Data Download':
+                self.tabWidget.setCurrentIndex(0)
+            elif SelectItme == 'Help':
+                self.manual_open()
+#                 self.tabWidget.setCurrentIndex(11)
+
+        except Exception as es:
+            _util.MessageboxShowError("Error message", str(es))
     
 #     # wget 폴더에 파일이 몇 개 들어왔는지...
 #     def getProcessList(self):

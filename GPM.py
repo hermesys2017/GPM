@@ -171,6 +171,13 @@ class GPM:
             text=self.tr(u'GPM_developer'),
             callback=self.run,
             parent=self.iface.mainWindow())
+        
+#         icon_path = ':/plugins/GPM/image/information.png'
+#         self.add_action(
+#             icon_path,
+#             text=self.tr(u'Help'),
+#             callback=self.run,
+#             parent=self.iface.mainWindow())
 
 
     def unload(self):

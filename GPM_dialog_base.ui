@@ -63,7 +63,7 @@
      <enum>QTabWidget::Rounded</enum>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>7</number>
     </property>
     <property name="usesScrollButtons">
      <bool>true</bool>
@@ -1847,6 +1847,19 @@ font: 75 10pt &quot;MS Shell Dlg 2&quot;;</string>
       </property>
       <property name="text">
        <string>Select Files(TIFF)</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btn_reload_layer">
+      <property name="geometry">
+       <rect>
+        <x>975</x>
+        <y>2</y>
+        <width>31</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
       </property>
      </widget>
     </widget>

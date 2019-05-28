@@ -40,3 +40,7 @@ Make Image 기능 보완
 
 - 다운로드 바 처리, 완료 시 message box 출력시켰음.
 
+### 2019-05-28
+1. Data Download
+- CMORPH 데이터 다운로드 추가되었음.(배포 예정 v0.27-테스트 전용으로)
+

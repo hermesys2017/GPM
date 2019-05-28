@@ -63,7 +63,7 @@
      <enum>QTabWidget::Rounded</enum>
     </property>
     <property name="currentIndex">
-     <number>7</number>
+     <number>0</number>
     </property>
     <property name="usesScrollButtons">
      <bool>true</bool>
@@ -191,9 +191,9 @@
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>310</y>
+        <y>495</y>
         <width>841</width>
-        <height>311</height>
+        <height>126</height>
        </rect>
       </property>
       <property name="verticalScrollBarPolicy">
@@ -274,8 +274,8 @@
       </property>
       <property name="geometry">
        <rect>
-        <x>45</x>
-        <y>50</y>
+        <x>660</x>
+        <y>35</y>
         <width>110</width>
         <height>16</height>
        </rect>
@@ -290,8 +290,8 @@
       </property>
       <property name="geometry">
        <rect>
-        <x>275</x>
-        <y>50</y>
+        <x>890</x>
+        <y>35</y>
         <width>105</width>
         <height>16</height>
        </rect>
@@ -299,6 +299,45 @@
       <property name="text">
        <string>windows 32bit</string>
       </property>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_18">
+      <property name="geometry">
+       <rect>
+        <x>35</x>
+        <y>20</y>
+        <width>561</width>
+        <height>80</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Select Data</string>
+      </property>
+      <widget class="QRadioButton" name="rdo_GPM">
+       <property name="geometry">
+        <rect>
+         <x>45</x>
+         <y>35</y>
+         <width>90</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>GPM</string>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="rdo_cmorph">
+       <property name="geometry">
+        <rect>
+         <x>290</x>
+         <y>35</y>
+         <width>90</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>CMORPH</string>
+       </property>
+      </widget>
      </widget>
      <zorder>label_3</zorder>
      <zorder>end_date</zorder>
@@ -316,6 +355,7 @@
      <zorder>wget_progress</zorder>
      <zorder>rdo_64</zorder>
      <zorder>rdo_32</zorder>
+     <zorder>groupBox_18</zorder>
     </widget>
     <widget class="QWidget" name="tab_8">
      <attribute name="title">

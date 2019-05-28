@@ -249,6 +249,8 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #         self.rdo_64.clicked.connect(self.Rdo_Selected_wget)
 #         self.rdo_32.clicked.connect(self.Rdo_Selected_wget)
 #         self.btn_bat_path.clicked.connect(self.wget_save_path)
+        #rdo_GPM check default
+        self.rdo_GPM.setChecked(True)
         self.btn_bat_path.clicked.connect(lambda :self.Select_Folder_Dialog(self.txt_bat_path)) 
         self.btn_datadownload.clicked.connect(self.wget_create_bat)
 
@@ -2796,7 +2798,11 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
 #             QgsMessageLog.logMessage(str(self.txt_userID.text())+"\n"+str(self.txt_userPW.text()),"GPM WGET")
             userId = self.txt_userID.text() ; userPw = self.txt_userPW.text()
 #             datadownlod = wget.wget_download(str(self.userOS), userId, userPw, self.start_date.text(), self.end_date.text(), self.txt_bat_path.text())
-            datadownlod = wget.create_bat_script_64(userId, userPw, self.start_date.text(), self.end_date.text(), self.txt_bat_path.text())
+            if self.rdo_GPM.isChecked():
+                datadownlod = wget.create_bat_script_64(userId, userPw, self.start_date.text(), self.end_date.text(), self.txt_bat_path.text())
+            elif self.rdo_cmorph.isChecked():
+                datadownlod = wget.cmorph_data_download(self.start_date.text(), self.end_date.text(), self.txt_bat_path.text())
+            
             
             self.wget_progress.setMaximum(len(datadownlod))   
 #             QgsMessageLog.logMessage(str(len(datadownlod)),"WGET")

@@ -14,6 +14,11 @@ from datetime import datetime,timedelta
 import getpass
 import subprocess as sub
 
+username = getpass.getuser()
+    
+wget_path = os.path.dirname(os.path.abspath(__file__))+"/Lib/wget/wget.exe"
+wget_path = wget_path.replace(username,"\""+(username)+"\"")
+
 
 # class wget_download:
 #     def __init__(self,userOs,Id,Pw,start,end,folder):
@@ -122,13 +127,10 @@ import subprocess as sub
 #     
 
 
-
+#NASA GPM
 def create_bat_script_64(Id,Pw,start,end,folder):
     output = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_data_download.bat"
-    username = getpass.getuser()
     
-    wget_path = os.path.dirname(os.path.abspath(__file__))+"/Lib/wget/wget.exe"
-    wget_path = wget_path.replace(username,"\""+(username)+"\"")
     
 #     ftp_user = "jh-kim@kict.re.kr"
 #     ftp_pass = "jh-kim@kict.re.kr"
@@ -205,3 +207,39 @@ def create_bat_script_64(Id,Pw,start,end,folder):
     return list
     
 # create_bat_script("2014-03-12","2014-06-11")
+
+
+# CMORPH DATA DOWNLOAD
+def cmorph_data_download(start,end,folder):
+    output = os.getenv('USERPROFILE') + '\\Desktop\\' + "CMORPH_data_download.bat"
+        
+    #cmorph 3hr 0.25deg - 일단 고정
+    ftp_url="ftp://ftp.cpc.ncep.noaa.gov/precip/global_CMORPH/3-hourly_025deg/"
+    
+    # 다운받을 데이터 날짜
+    daylist = []
+    days= datetime.strptime(end, "%Y-%m-%d").date() - datetime.strptime(start, "%Y-%m-%d").date()
+    for i in range(days.days):
+        timeday= datetime.strptime(start, "%Y-%m-%d").date()+timedelta(+i)
+        daylist.append(timeday)
+    
+    #이미이전에 있었나요? 지우고 시작합시다.
+    if os.path.exists(output):
+        os.remove(output)
+     
+    #마지막 날짜는 따로 추가
+    timeday=datetime.strptime(end, "%Y-%m-%d").date()
+    daylist.append(timeday)
+    file = open(output,'w+')
+    list = [] ; 
+    for day in daylist:
+#         datefolder= day.strftime('%Y%m')
+        fileName = "CMORPH+MWCOMB_3HRLY-025DEG_{0}.Z".format(str(day).replace("-", ""))
+        arg = wget_path + " -r -nd -P \"""{0}\" ".format(folder+"/") + "--content-on-error {0}".format((ftp_url+fileName))
+        list.append(arg)
+#         arg = wget_path + " -bqc -r -nd -P \"""{0}\" ".format(folder+"/"+createTime_folder)+
+#  "--ftp-user={0} --ftp-password={1} --content-on-error {2}".format(ftp_user,ftp_pass,(url+datefolder+"/"+file1))
+        file.write(arg+"\n")
+    
+    file.close()
+    return list

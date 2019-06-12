@@ -2667,12 +2667,18 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
                     for i in list(items):
                         # 2018-10-25 v0.0.14 추가
                         asc_file = _util.GetFilename(i.text())
-                        png_name = self.txt_output_png.text() + "/" + asc_file.upper() + ".PNG"
+                        _util.CreateFolder(self.txt_output_png.text() + "/Original/")
+                        png_name = self.txt_output_png.text() + "/Original/" + asc_file.upper() + ".PNG"
                         sleep(0.5)
-                        
                         self.make_png(i.text(), png_name)
+                        QgsMessageLog.logMessage("1","GPM IMG")
                         
-                        try:
+                        if self.shp_layer_polygon != "" or self.shp_layer_line != "" or self.shp_layer_point != "":
+#                         try:
+                            _util.CreateFolder(self.txt_output_png.text() + "/Base/")
+                            savePath = self.txt_output_png.text() + "/Base/" + asc_file.upper() + ".PNG"
+                            
+                            QgsMessageLog.logMessage("2","GPM IMG")
 #                             if self.shp_layer_polygon !="" :
 #                             QgsMessageLog.logMessage("1","GPM IMG")
 #                                 vectorLayer_polygon =self.shp_layer_polygon;
@@ -2685,16 +2691,18 @@ class GPMDialog(QtGui.QMainWindow, FORM_CLASS):
         #                     QgsMapLayerRegistry.instance().addMapLayers([png_name,self.baseLayer], False)
 #                                 saveImg = self.savePng_base((self.gpm_canvas), (png_name), (self.shp_layer_polygon), savePath)
 #                             saveImg = self.savePng_base(self.gpm_canvas, png_name, self.shp_layer_polygon,self.shp_layer_line,self.shp_layer_point, savePath)
-                            saveImg = self.savePng_base(self.gpm_canvas, png_name, self.shp_layer_polygon, self.shp_layer_line, self.shp_layer_point, png_name)
+                            saveImg = self.savePng_base(self.gpm_canvas, png_name, self.shp_layer_polygon, self.shp_layer_line, self.shp_layer_point, savePath)
                             QgsMessageLog.logMessage("6", "GPM IMG")
                             
                             sleep(0.5)
+                            self.btl_png_list.addItem(savePath)
+                    
+                        else:
                             self.btl_png_list.addItem(png_name)
-                            
 #                             saveImg = self.savePng_base(self.gpm_canvas, png_name, vectorLayer_polygon,vectorLayer_line,vectorLayer_point, savePath)
-                        except:
-                            sleep(0.5)
-                            self.btl_png_list.addItem(png_name)  # 이게 결과 png 파일임. 이것만 들어가도록 처리..
+#                         except:
+#                             sleep(0.5)
+#                             self.btl_png_list.addItem(png_name)  # 이게 결과 png 파일임. 이것만 들어가도록 처리..
     #                     self.btl_png_list.addItem(i.text().upper().replace(".ASC",".PNG"))
                         # self.Png_Add_Text(i.text().upper().replace(".ASC",".PNG"))
                     self.shp_layer_polygon = "" ;self.shp_layer_line = "";self.shp_layer_point = ""

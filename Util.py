@@ -117,13 +117,13 @@ class util:
         else:
             return False
 
-    # 폴더 경로 맞는지 확인
-    def CheckFolder(self, path):
-        filepath = path.replace('\\', '\\\\')
-        if (os.path.isdir(filepath)):
-            return True
-        else:
-            return False
+#     # 폴더 경로 맞는지 확인
+#     def CheckFolder(self, path):
+#         filepath = path.replace('\\', '\\\\')
+#         if (os.path.isdir(filepath)):
+#             return True
+#         else:
+#             return False
 
     def CheckTaudem(self):
         if os.path.isdir('C:\\Program Files\\TauDEM'):
@@ -274,13 +274,20 @@ class util:
         else:
             return False
 
-    # 폴더 경로 맞는지 확인
+#     # 폴더 경로 맞는지 확인
     def CheckFolder(self, path):
         filepath = path.replace('\\', '\\\\')
         if (os.path.isdir(filepath)):
             return True
         else:
             return False
+    
+    #폴더 생성
+    def CreateFolder(self, path):
+        if self.CheckFolder(path) == False:
+            os.mkdir(path)
+        else:
+            pass            
 
     # 폴더및 파일 명칭에 한글 포함하고 있는지 체크
     def CheckKorea(self,string):

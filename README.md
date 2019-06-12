@@ -44,3 +44,7 @@ Make Image 기능 보완
 1. Data Download
 - CMORPH 데이터 다운로드 추가되었음.(배포 예정 v0.27-테스트 전용으로)
 
+### 2019-06-12
+1. Make Image
+- Original 폴더,Base 폴더 구분 생성
+(Original 폴더에는 Raster --> PNG 화, Base 폴더에는 Raster + Shaep)

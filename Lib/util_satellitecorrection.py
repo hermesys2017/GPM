@@ -9,10 +9,6 @@
     @author: MH.CHO
 
 ***************************************************************************/
-/***************************************************************************
-
-
-***************************************************************************/
 '''
 
 from math import sqrt
@@ -35,7 +31,8 @@ class Util_satellitecorrection():
         total_mean =numpy.mean(numpy.ma.masked_values(matrix,nodata))
         return total_mean
     
+    #표준편차 함수만 오류를 일으키고 있음.
     #nodata를 제외한 격자 전체 표준편차
     def total_stdev(self,matrix, nodata):
-        total_stdev = numpy.std(numpy.ma.masked_values(numpy.ma.masked_values(matrix,nodata)))
+        total_stdev = numpy.std(numpy.ma.masked_values(matrix,nodata))
         return total_stdev

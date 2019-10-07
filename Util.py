@@ -14,30 +14,9 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 class util:
-    def __init__(self):
-        self.tauDEMCommand = self.enum('b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7')
-
-    def enum(*sequential, **named):
-        enums = dict(zip(sequential, range(len(sequential))), **named)
-        reverse = dict((value, key) for key, value in enums.iteritems())
-        enums['reverse_mapping'] = reverse
-        return type('Enum', (), enums)
-
-    # Taudem path 받아 오기
-    def GetTaudemPath(self):
-        tauPath = "C:\\Program Files\\TauDEM\\TauDEM5Exe\\"
-        return tauPath
-
     def Execute(self, arg):
-        value = call(arg)
+        value = call(arg,shell=True)
         return value
-    
-    def Excute_test(self):
-        arg = "C:/Program Files/GDAL/gdal_calc.py -A C:/GRM/inha/band1.tif --outfile=C:/GRM/inha/output.tif --calc=A*logical_or(A<=7,A>=5) --NoDataValue = 0"
-        # call([sys.executable, 'C:/PROGRA~2/GDAL/gdal_calc.py', '-A', 'C:/GRM/inha/band1.tif', '--outfile=C:/GRM/inha/output.tif','--calc=A+1'])
-        self.MessageboxShowError("test",arg)
-        os.system(arg)
-        # call(arg)
 
     # 윈도우 임시 폴더에 임시 파일 생성
     def GetTempFilePath(self, tempfilepath):
@@ -117,13 +96,13 @@ class util:
         else:
             return False
 
-#     # 폴더 경로 맞는지 확인
-#     def CheckFolder(self, path):
-#         filepath = path.replace('\\', '\\\\')
-#         if (os.path.isdir(filepath)):
-#             return True
-#         else:
-#             return False
+    # 폴더 경로 맞는지 확인
+    def CheckFolder(self, path):
+        filepath = path.replace('\\', '\\\\')
+        if (os.path.isdir(filepath)):
+            return True
+        else:
+            return False
 
     def CheckTaudem(self):
         if os.path.isdir('C:\\Program Files\\TauDEM'):
@@ -185,17 +164,21 @@ class util:
             if file.lower().endswith("."+ extension):
                 filelist.append(directory +"/" +file)
         return filelist
-
+    
+    def ConvertASCToTIFF(self,inputFileName,  outputFileName):
+        arg = "gdal_translate -of GTiff {0} {1}".format(inputFileName,outputFileName)
+        self.Execute(arg)
+    
     def ConvertRasterToASC(self,inputFileName,  outputFileName):
 #         arg = "C:/Program Files/QGIS 2.18/bin/gdal_translate.exe"
-        arg = "gdal_translate.exe"
-        arg  = arg  +  " -of AAIGrid " + inputFileName + " " + outputFileName
+        arg  = "gdal_translate.exe"  +  " -of AAIGrid " + inputFileName + " " + outputFileName
         self.Execute(arg)
 
     def ExecuteGridResampling(self,method,cellSize,inputfilename,outputfilename):
 #         arg = "C:/Program Files/QGIS 2.18/bin/gdalwarp.exe"
-        arg = "gdalwarp.exe"
-        arg =arg +  " -r " + method +" -tr " + cellSize +  " " + cellSize + " "+ inputfilename + " "+ outputfilename
+#         arg = "gdalwarp.exe"
+#         arg =arg +  " -r " + method +" -ts " + cellSize +  " " + cellSize + " "+ inputfilename + " "+ outputfilename
+        arg ="gdalwarp.exe" +  " -r " + method +" -tr " + cellSize +  " " + cellSize + " "+ inputfilename + " "+ outputfilename
         self.Execute(arg)
 
     def ConvertShapeToCSV(self,inputFileName,  outputFileName):
@@ -274,20 +257,13 @@ class util:
         else:
             return False
 
-#     # 폴더 경로 맞는지 확인
+    # 폴더 경로 맞는지 확인
     def CheckFolder(self, path):
         filepath = path.replace('\\', '\\\\')
         if (os.path.isdir(filepath)):
             return True
         else:
             return False
-    
-    #폴더 생성
-    def CreateFolder(self, path):
-        if self.CheckFolder(path) == False:
-            os.mkdir(path)
-        else:
-            pass            
 
     # 폴더및 파일 명칭에 한글 포함하고 있는지 체크
     def CheckKorea(self,string):
@@ -304,5 +280,23 @@ class util:
         value = call(arg, creationflags=CREATE_NO_WINDOW)
         return value
     
-
+    def ConfigSectionMap(self,section,path):
+        config= ConfigParser.RawConfigParser()
+        config.read(path)
+        dict_section = {}
+        options = config.options(section)
+        for option in options:
+            try:
+                dict_section[option] = config.get(section, option)
+    #             if dict_section[option] == -1:
+    #                 DebugPrint("skip: %s" % option)
+            except:
+                print("exception on %s!" % option)
+                dict_section[option] = None
+        return dict_section
+    
+    #폴더 생성
+    def mk_folder(self,path):
+        if os.path.exists(path) == False:
+            os.mkdir(path)
         

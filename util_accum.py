@@ -42,30 +42,25 @@ class accum_util():
         
         onelist=[]
         for file in TIFF_list:
-            
-            #여기서 nodata 값을 얻어야 겠다 # 2019-03-12 추가
-#             tiff_ds = gdal.Open(file)
-#             Nodata = tiff_ds.GetRasterBand(1) .GetNoDataValue()
-            
             filename = _util.GetFilename(file)
             onelist.append(file)
             listTostr=";".join(onelist)
             
-#             grids = " -GRIDS {}".format(listTostr)
-#             results=" -RESULT {}".format(output)
+            grids = " -GRIDS {}".format(listTostr)
+            results=" -RESULT {}".format(output)
             try:     
 #                 run_saga=saga_path+" grid_calculus 8 {0} {1}".format(grids,results)
                 run_saga=[osgeo4w,
                           saga_path,"grid_calculus","8",
                           "-GRIDS",listTostr,
-#                           "-USE_NODATA",str(Nodata),          
-                          "-RESULT",output,
-                          "-NODATA","True"]
+#                           "-USE_NODATA","true",           
+                          "-RESULT",output]
                 #nodata 추가함
 #                 create_file.write(str(run_saga)+"\n")
 #                 call_arg =[osgeo4w,run_saga]
 #             os.system(run_saga,shell=True)
                 
+#                 subprocess.call(run_saga)
                 subprocess.call(run_saga,shell=True)
 
 #                 subprocess.call(run_saga, shell=True) #나중에 shell=True 사용해서 cmd 안뜨게 함/
@@ -106,18 +101,26 @@ class accum_util():
 #         osgeo4w="\"""C:/Program Files/QGIS 2.18/OSGeo4W.bat""\""
 #         create_filename = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_Accum_Amount.txt"
 #         create_file = open(create_filename,'w+')
-#         arg = gdal_calc + " -A {0} --format GTiff --calc A*30/60 --outfile {1}".format(input,output)
-        
+#         call_arg = gdal_calc + " -A {0} --format GTiff --calc A*30/60 --outfile {1}".format(input,output)
         tiff_ds = gdal.Open(input)
         Nodata = tiff_ds.GetRasterBand(1) .GetNoDataValue()
         
-        call_arg = [osgeo4w,
-                    "gdal_calc",
-                    "-A",input,"--format","GTiff","--calc","A*30/60",
-                    "--outfile",str(output),"--NoDataValue",str(Nodata)]
+        if (Nodata != None):
+            call_arg = [osgeo4w,
+                        "gdal_calc",
+                        "-A",input,"--format","GTiff","--calc","A*30/60",
+                        "--outfile",str(output),"--NoDataValue",str(Nodata)]
+        if (Nodata==None):
+            call_arg = [osgeo4w,
+                 "gdal_calc",
+                 "-A",input,"--format","GTiff","--calc","A*30/60",
+                 "--outfile",str(output),"--NoDataValue","-9999"] 
+    
 #         create_file.write("\n"+str(call_arg))
         subprocess.call(call_arg,shell=True)
+#         subprocess.call(call_arg)
         sleep(0.5)
+#         return call_arg
 #         create_file.close()
 #         create_file.write(arg)
 #         os.system(arg)

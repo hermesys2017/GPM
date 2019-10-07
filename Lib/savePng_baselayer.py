@@ -10,8 +10,12 @@ import os
 from PyQt4.QtGui import QImage, QPainter
 from PyQt4.QtCore import QSize
 
+
+
 class savePng_Class:
     def savePng_base(self,canvas,raster,vector, saveName):
+        # 이 부분은 이미지 사이즈임... 나중에 래스터와 동일한 사이즈로 만들어주세요! 라고 하면 그 때 래스터 사이즈 get 하는 거 알아내서 하도록...
+        # 조금 귀찮아서..
         width = 800
         height = 600
         

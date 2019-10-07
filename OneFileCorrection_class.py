@@ -36,22 +36,17 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib')
 import util_satellitecorrection as util_sc
 
-
-
-
 g_distance_km=0
 magicNumber = 0
 scope_n = 0
 ErrOneMsg =""
 InformMsg=""
 
-
-
 # _util = Util.util()
 _header = header_class.header_body()
 _util_sc = util_sc.Util_satellitecorrection()
-# create_filename = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_sate_plugin.txt"
-# create_filename = os.getenv('USERPROFILE') + '\\Desktop\\' + "GPM_sate_class.txt"
+# create_filename = os.getenv('USERPROFILE') + '//Desktop//' + "GPM_sate_plugin.txt"
+# create_filename = os.getenv('USERPROFILE') + '//Desktop//' + "GPM_sate_class.txt"
 # create_file = open(create_filename,'w+')
 start_time = time.time()
 class satellite_correction():
@@ -68,7 +63,7 @@ class satellite_correction():
         try:
     #         for i in range(len(dataItems)):
             #12번째까지 읽음(헤더만 필요함) .. 변경 필요...? or 그대로? 
-            for i in range(12):
+            for i in range(20):
                 if  (dataItems[i].lower() == 'ncols') :
                     _header.ncols = int(dataItems[i+1])
                 if  (dataItems[i].lower() == 'nrows') :
@@ -95,11 +90,8 @@ class satellite_correction():
 #                         print str(_header.body[xcols][yrow]).strip(),"inf"
                         if "inf" in str(_header.body[yrow][xcols]).strip():
                             _header.body[yrow][xcols] = float(str(_header.body[yrow][xcols]).strip().replace("inf", "0"))
-                             
-                             
-                        
-#                             _header.body[yy][xx]= float(str(_header.body[yy][xx]).replace("inf", str(_header.nodata_value)))
-#                             _header.body[xx][yy]= float(str(_header.body[xx][yy]).replace("inf", "0"))
+# #                             _header.body[yy][xx]= float(str(_header.body[yy][xx]).replace("inf", str(_header.nodata_value)))
+# #                             _header.body[xx][yy]= float(str(_header.body[xx][yy]).replace("inf", "0"))
             except Exception as e:
                 strErrmsg = "Get_ASC_header_and_body :"+str(e)
                 if strErrmsg not in ErrOneMsg:
@@ -127,7 +119,6 @@ class satellite_correction():
         # 따라서 현재는 ASC : CSV = 1:n 대응임.
         # 그래서 1:n 대응을 1:1 대응으로 코드 변경 필요...
         #How to...?
-        
         '''
         
         
@@ -378,10 +369,9 @@ class satellite_correction():
         global ErrOneMsg
         try:
             if os.path.basename(asc_file).lower() == "yeonsei_testcase.asc": 
-                dist_km_between_cells=_util_sc.getdist_YSU_SampleData_Only(x-ncols_x,y-nrows_y)#피타고라스, 위치로부터 거리로 계산
+                dist_km_between_cells=self.getdist_YSU_SampleData_Only(x-ncols_x,y-nrows_y)#피타고라스, 위치로부터 거리로 계산
             else:
-#                 dist_km_between_cells=self.getdist(x-ncols_x,y-nrows_y)
-                dist_km_between_cells=_util_sc.getdist(x-ncols_x,y-nrows_y)
+                dist_km_between_cells=self.getdist(x-ncols_x,y-nrows_y)
             return dist_km_between_cells
         
         except Exception as e:
@@ -501,18 +491,18 @@ class satellite_correction():
     
     # 2017/8 원 : 기존엔 col,row 격자 cell 거리 방식이었고. 이제 km 단위로 변경함
     #연대 sample 데이터 전용으로 km를 반환
-#     def getdist_YSU_SampleData_Only(self,colwidth,rowwidth):
-#     #     dist_km=(   ((colwidth/4.0*91.290)**2)  +  ((rowwidth/4.0*110.941)**2)    )**0.5
-#         dist_km=sqrt(   pow((colwidth/4.0*91.290),2)  +  pow((rowwidth/4.0*110.941),2)    )
-#         # /4 이유는 모로코 격자 규격이 0.25도 간격 이라서.. 거리 수치는 소스에서 가져옴  
-#         # 우리가 http://www.nhc.noaa.gov/gccalc.shtml 에서 확보한 수치와 거의 비슷함  
-#         return dist_km  
-#     
-#     #연대 sample 이외의 데이터를 사용할 때, 연대는 이제 해당이 없지..
-#     def getdist(self,colwidth, rowwidth):
-#         dist= sqrt(pow(colwidth,2)+pow(rowwidth,2))
-#     #     dist = ((colwidth**2)+(rowwidth**2))**0.5
-#         return dist
+    def getdist_YSU_SampleData_Only(self,colwidth,rowwidth):
+    #     dist_km=(   ((colwidth/4.0*91.290)**2)  +  ((rowwidth/4.0*110.941)**2)    )**0.5
+        dist_km=sqrt(   pow((colwidth/4.0*91.290),2)  +  pow((rowwidth/4.0*110.941),2)    )
+        # /4 이유는 모로코 격자 규격이 0.25도 간격 이라서.. 거리 수치는 소스에서 가져옴  
+        # 우리가 http://www.nhc.noaa.gov/gccalc.shtml 에서 확보한 수치와 거의 비슷함  
+        return dist_km  
+    
+    #연대 sample 이외의 데이터를 사용할 때, 연대는 이제 해당이 없지..
+    def getdist(self,colwidth, rowwidth):
+        dist= sqrt(pow(colwidth,2)+pow(rowwidth,2))
+    #     dist = ((colwidth**2)+(rowwidth**2))**0.5
+        return dist
     
     # #지상자료의 표준 편차(지상자료의 평균 사용) : t_OBS
     def STDEV_OBS_ZONE(self,groundFile,asc_file):
@@ -888,14 +878,16 @@ class satellite_correction():
         global ErrOneMsg #오류 메시지를 모음
         global InformMsg
         
+        
+        
+        total_mean_sre = _util_sc.total_mean((_header.body),(_header.nodata_value))
+#         total_stdeb_sre= _util_sc.total_stdev((_header.body),(_header.nodata_value))
 #         total_mean_sre =numpy.mean(_header.body)
 #         total_stdeb_sre = numpy.std(_header.body)
-        
-        
-        total_mean_sre =numpy.mean(numpy.ma.masked_values(_header.body,_header.nodata_value))
+#         total_mean_sre =numpy.mean(numpy.ma.masked_values(_header.body,_header.nodata_value))
         total_stdeb_sre = numpy.std(numpy.ma.masked_values(_header.body,_header.nodata_value))
-#         total_mean_sre = _util_sc.total_mean((_header.body),(_header.nodata_value))
-#         total_stdeb_sre = _util_sc.total_stdev((_header.body),(_header.nodata_value))
+        
+        
         
         #거리 로그, 개발자용.주석처리 바람.
         
@@ -913,9 +905,9 @@ class satellite_correction():
             g_final_dist=[[0 for x in range(_header.ncols)] for y in range(_header.nrows)]
                 
         #     for i in range(ncolsrows[1]):
-            for distance_km in range(0,100):
+            for distance_km in range(0,300):
                 g_distance_km = distance_km
-                print ("g_distance_km : ",g_distance_km)
+#                 print "g_distance_km : ",g_distance_km
 #                 create_file.write("\ng_distance_km : " +str(g_distance_km))
 #                 create_file.write("\ntime : " +"%s"%(time.time()-start_time))
                 
@@ -943,14 +935,10 @@ class satellite_correction():
                                  
                                 #지상의 관측소 개수에 따라 계산 법이 달라짐
                                 if obsavgvalue[1][y][x] ==0: #관측소 0개
-#                                     microF=self.Get_Ground_Point(groundFile)[1]/total_mean_sre #전체 지상평균/전체 위성평균
-                                    microF = self.Get_Ground_Point(groundFile)/total_mean_sre
-                                    
-#                                     tauF=self.Get_Ground_Point(groundFile)[2]/total_stdeb_sre #전체 지상표준편차/ 전체 위성 표준편차
-                                    tauF = self.Get_Ground_Point(groundFile)/total_stdeb_sre
-                                    
+                                    microF=self.Get_Ground_Point(groundFile)[1]/total_mean_sre #전체 지상평균/전체 위성평균
+                                    tauF=self.Get_Ground_Point(groundFile)[2]/total_stdeb_sre #전체 지상표준편차/ 전체 위성 표준편차
                                     #SreC[y][x]=((self.ASC_Body_2grid(asc_file)[y][x]-total_mean_sre)*tauF)+(total_mean_sre*microF)
-                                    SreC[y][x]=(((_header.body[y][x])-total_mean_sre*tauF)+(total_mean_sre*microF))
+                                    SreC[y][x]=(((_header.body[y][x])-total_mean_sre)*tauF)+(total_mean_sre*microF)
                                 elif obsavgvalue[1][y][x] ==1: #관측소 1개
                                     SreC[y][x]=(_header.body[y][x])
                                 else:#관측소가 0개, 1개도 아닌 그 외일 때
@@ -1025,7 +1013,7 @@ class satellite_correction():
             save_file_name.close()
             #보정처리를 문제 없이 수행한 파일에 대해서는 일부러 넣지 않음
             #보정처리에 문제가 발생한 파일만 errmsg로 내보냄
-#             suc_msg="<<<Completed>>>/n/n {0}.".format(os.path.basename(asc_file))
+#             suc_msg="<<<Completed>>>\n\n {0}.".format(os.path.basename(asc_file))
             performMsg = performMsg + "Inform : \n[{0}], {1}\n".format(str(os.path.split(os.path.splitext(asc_file)[0])[1]),InformMsg)
             
 #             if InformMsg !="":
@@ -1039,15 +1027,18 @@ class satellite_correction():
               
               
         elif sre_correction == False:
-            errmsg = errmsg + "<<<Error>>> \n\n [{0}], {1}\n\n".format(os.path.basename(asc_file),ErrOneMsg) #+ "/n"+str(obsavgvalue)
+            errmsg = errmsg + "<<<Error>>> \n\n [{0}], {1}\n\n".format(os.path.basename(asc_file),ErrOneMsg) #+ "\n"+str(obsavgvalue)
             return errmsg
+
+
+
         
      
 # sate = satellite_correction()
 #     
-# save_path="D:/Working/Gungiyeon/GPM/GPM_test/T20181126/satellite_correction_plugin"
-# asc_file_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prj_asc/resampling/50km/3B-HHR-L.MS.MRG.3IMERG.20180515-S153000-E155959.0930.V05B.RT-H5_pCal.asc"]
-# groundFile_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/T20181106/prof_sample/2018-05-16001200000AM.csv"]
+# save_path="D:/Working/Gungiyeon/GPM/GPM_test/T20190207/7_satellite_correction"
+# asc_file_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/old/T20181106/prj_asc/resampling/50km/3B-HHR-L.MS.MRG.3IMERG.20180515-S153000-E155959.0930.V05B.RT-H5_pCal.asc"]
+# groundFile_list=[u"D:/Working/Gungiyeon/GPM/GPM_test/old/T20181106/prof_sample/2018-05-16001200000AM.csv"]
 # _decimal=2
 #     
 # sate.run_correction(save_path, asc_file_list, groundFile_list, _decimal)

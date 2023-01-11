@@ -164,6 +164,8 @@ class GPM:
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         icon_path = ':/plugins/GPM/icon/GPM.png'
+#         icon_path = ':/plugins/GPM/icon/KICT_logo_2.png'
+        
         self.add_action(
             icon_path,
             text=self.tr(u'KICT_Satellite_Precipitation_Converter'),
@@ -181,7 +183,6 @@ class GPM:
                 self.tr(u'&KICT_Satellite_Precipitation_Converter'),
                 action)
             self.iface.removeToolBarIcon(action)
-
 
     def run(self):
         """Run method that performs all the real work"""

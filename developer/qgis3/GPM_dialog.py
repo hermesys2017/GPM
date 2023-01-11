@@ -22,13 +22,18 @@
  ***************************************************************************/
 """
 
-import os,sys,shutil,getpass
+from email.mime import image
+import os
+import sys
+import shutil
+import getpass
 
 from  qgis import *
 from qgis.analysis import *
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 from qgis.core import *
+from qgis.gui import QgsMapToolEmitPoint
 
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -40,19 +45,33 @@ from PIL import ImageFont, Image, ImageDraw
 import subprocess as sub
 from time import  sleep
 import time
+
 from . import wget
 from . import Util as util
 from . import Dict_Clip as dCilp
 from . import Dict
+from . import CM_Method
+from .about_dialog import *
+
 from osgeo import *
 import csv
+from osgeo import gdal,gdalconst,osr
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib')
+
+# 2022.12.28 조 : imageio가 없어서 기본 설치하도록 수정
+#util.util().import_or_install("pillow")
+#util.util().import_or_install("_imaging")
+util.util().import_or_install("imageio")
 import imageio
 import transpose_Tiff as tr_Tiff
 import Canvas_Tools
 import util_accum
 import png_background_Transparent as png_trans
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib/data_download')
+import GPM_download
+
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib/convert2tiff')
 import GSMap_convert_tiff
 
@@ -61,114 +80,149 @@ import GPM_Accum
 import GSMap_accum
 import CMORPH_accum
 
+import requests
+
+#2020-10-20 박:
+import math
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib/Satellite_Correction')
 import OneFileCorrection_class as OneFile
 
-
-
-# This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
-FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'GPM_dialog_base_2.ui'))
+# This loads your .ui file so that PyQt can populate your plugin with the
+# elements from Qt Designer
+FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'GPM.ui'))
 
 path = os.path.dirname(os.path.realpath(__file__))
 settings_icon = path + '\image\settings.png'
 _util = util.util()
-_tr_Tiff=tr_Tiff.transpose_Tiff_class()
+_tr_Tiff = tr_Tiff.transpose_Tiff_class()
 _Dict_clip = dCilp.dict_clip()
 _Dict = Dict.dict()
 _utilAC = util_accum.accum_util()
-_corr=OneFile.satellite_correction()
-
-_iface ={}
+_corr = OneFile.satellite_correction()
+_iface = {}
 _layers = {}
-# _ASC_filename=[]
-# class GPMDialog(QtWidgets.QDialog, FORM_CLASS):
+
+DATE_TIME_FORMAT="yyyy-MM-dd"
 class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     def __init__(self, parent=None):
-        """Constructor."""
         super(GPMDialog, self).__init__(parent)
-        # Set up the user interface from Designer through FORM_CLASS.
-        # After self.setupUi() you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        
+
+        #2020-10-20
+        self.MaxValue = 0
+        self.MinValue = 0
+
+
         self.Setini()
-    
-    
+        
+
+
     #초기 셋팅
     def Setini(self):
         global _layers
-#         _layers = GPM._iface.legendInterface().layers()
         _layers = QgsProject.instance().layerTreeRoot().layerOrder()
-#         self._ASC_filename =[]
-#         global _ASC_filename
-#         _ASC_filename=_util.Qgis_Layer_list(_layers)
-#         _util.MessageLogShowInfo("SAT INI",str(_layers))
-#         _ASC_filename=_layers
         
-        # 트리 위젯셋팅
-        self.Set_treeWidget()
-        
+        #network_flag = _util.connected_to_internet()
+        #if not(network_flag):
+        #    _util.MessageboxShowError("Network check"," Use is restricted because there is no network connection.")
+    
+        #2020-08-20 박: Info창 출력
+        mainMenu = self.menuBar()
+        Settings_info = QAction('Info', self)
+        Settings_info.triggered.connect(self.AboutOpen)
+        self.Settings_Menu = mainMenu.addMenu('&Help ')
+        self.Settings_Menu.addAction(Settings_info)
+
+        #2020-07-14 박: 베이스 맵 선택 콤보 박스
+        self.cmb_base_map.addItems(["Select OpenLayers","Google Map","OSM"])
+        self.cmb_Downlaod_Type.addItems(["Select download type","Early","Late"])
+
+        #2019-12-20 박: 동희 개발 2줄 탭
+        self.qTabBar()
+        self.firstTab.currentChanged.connect(lambda: self.connectionTabBar("first"))
+        self.secondTab.currentChanged.connect(lambda: self.connectionTabBar("second"))
+
+        self.groupBox_28.setStyleSheet("QGroupBox{padding-top:15px;margin-top:-15px;}")
+        self.groupBox_30.setStyleSheet("QGroupBox{padding-top:15px;margin-top:-15px;}")
+        self.groupBox_27.setStyleSheet("QGroupBox{padding-top:15px;margin-top:-15px;}")
+        self.groupBox.setStyleSheet("QGroupBox{padding-top:15px;margin-top:-15px;}")
+        self.groupBox_21.setStyleSheet("QGroupBox{padding-top:15px;margin-top:-15px;}")
         # 버튼 아이콘 설정
         self.set_btn_icon()
     
         # Data Download 초기 셋팅================================
-        self.rdo_GPM.setChecked(True)
-        self.rdo_GPM.clicked.connect(self.Rdo_Selected)
-        self.rdo_cmorph.clicked.connect(self.Rdo_Selected)
-        self.rdo_gsmap.clicked.connect(self.Rdo_Selected)
-        
+        #2022.12.28 조  : 날짜 display format이 고정적이지 않아 고정적으로 코드 수정하였음. 고정 날짜 포맷 -  yyyy-MM-dd
+        self.start_date.setDisplayFormat(DATE_TIME_FORMAT)
+        self.end_date.setDisplayFormat(DATE_TIME_FORMAT)
+        self.start_date_1.setDisplayFormat(DATE_TIME_FORMAT)
+        self.end_date_1.setDisplayFormat(DATE_TIME_FORMAT)
+        self.start_date_2.setDisplayFormat(DATE_TIME_FORMAT)
+        self.end_date_2.setDisplayFormat(DATE_TIME_FORMAT)
+        self.rdo_HDF5.setChecked(True)
+        self.btn_datadownload.clicked.connect(lambda:self.data_download("GPM"))
+        self.btn_download_GSMap.clicked.connect(lambda:self.data_download("GSMAP"))
+        self.btn_download_CMORPH.clicked.connect(lambda:self.data_download("CMORPH"))
         self.btn_bat_path.clicked.connect(lambda:self.Select_Folder_Dialog(self.txt_bat_path))
-        self.btn_datadownload.clicked.connect(self.data_download)
+        self.btn_bat_path_1.clicked.connect(lambda:self.Select_Folder_Dialog(self.txt_bat_path_1))
+        self.btn_bat_path_2.clicked.connect(lambda:self.Select_Folder_Dialog(self.txt_bat_path_2))
+        
+
+
+#        self.rdo_GPM.setChecked(True)
+#        self.rdo_GPM.clicked.connect(self.Rdo_Selected)
+#        self.rdo_cmorph.clicked.connect(self.Rdo_Selected)
+#        self.rdo_gsmap.clicked.connect(self.Rdo_Selected)
+        
+#        self.btn_bat_path.clicked.connect(lambda:self.Select_Folder_Dialog(self.txt_bat_path))
+        
         
         #Convert To TIFF 초기 셋팅================================
         self.rdo_GPM_convert.setChecked(True)
         self.rdo_GPM_convert.clicked.connect(self.Rdo_Selected)
         self.rdo_CMORPH_convert.clicked.connect(self.Rdo_Selected)
         self.rdo_gsmap_convert.clicked.connect(self.Rdo_Selected)
-#         self.btn_gpm_convert.clicked.connect(self.Convert_hdf5)
-        self.btn_input_hdf5.clicked.connect(self.check_data_select) # check 상태에 따라 선택 파일 달라짐
+
+        # check 상태에 따라 선택 파일 달라짐
+        self.btn_input_hdf5.clicked.connect(self.check_data_select) 
         self.txt_hdf5_inPath.setText("Grid")
         self.txt_hdf_inName.setText("precipitationCal")
         self.btn_Apply_Convert.clicked.connect(self.check_data_process)
         self.Set_Convert_table_layerlist()
         self.btn_Output_Folder_Convert.clicked.connect(lambda :self.Select_Folder_Dialog(self.txt_Output_Convert))
         
+        #2020-10-19 박: 기능 추가
+        #KML ================================
+        self.btn_kml_select_dialog.clicked.connect(self.Select_Folder__Dialog_KML)
+        self.btn_covert_KML.clicked.connect(self.Conver_KML)
+        self.btn_kml_folder.clicked.connect(lambda :self.Select_Folder_Dialog(self.txt_KML_Image_path))
+        #self.btn_value_test.clicked.connect(self.Min_Max_value)
         #Clip ================================
         # 라디오 버튼 초기화
         self.rdo_Combo_Clip.setChecked(True)
         self.rdo_Combo_Clip.clicked.connect(self.Rdo_Selected)
         self.rdo_Shape_Clip.clicked.connect(self.Rdo_Selected)
         self.rdo_user_clip.clicked.connect(self.Rdo_Selected)
-#         self.Rdo_Selected()
+
         # 클립 영역 Apply 버튼 클릭 이벤트
         self.btn_input_tiff.clicked.connect(self.select_Cilp_files)
+
         # Shape 파일 경로 받아 오기
         self.btn_shape_dialog.clicked.connect(lambda :self.Shape_Select(self.txt_Shape_path))
-#         _util.MessageLogShowInfo("clip_shp",str(self.txt_Shape_path.text()))
+
         
         # 폴더 선택 다이얼로그
         self.btn_Output_Folder.clicked.connect(lambda :self.Select_Folder_Dialog(self.txt_output_clip))
         self.btn_apply_clip.clicked.connect(self.Clip_apply_Click)
-    # 클립 영역 선택 콤보 박스 셋팅 (한반도 , 남한 영역, 필리핀, 모로코 영역)
+
+        # 클립 영역 선택 콤보 박스 셋팅 (한반도 , 남한 영역, 필리핀, 모로코 영역)
         self.cmb_clip_zone.addItems(_Dict_clip.cmb_Clip)
         
         #UTM ================================
-#         self.cmb_utm_source.addItems(["Select UTM","WGS84_UTM 28N","WGS84_UTM 29N","WGS84_UTM 30N","WGS84_UTM 50N","WGS84_UTM 51N","WGS84_UTM 52N","WGS84_UTM 53N"])
-        self.cmb_utm_target.addItems(["Select UTM", 
-                                      'WGS84_UTM 1N','WGS84_UTM 1S','WGS84_UTM 2N','WGS84_UTM 2S','WGS84_UTM 3N','WGS84_UTM 3S','WGS84_UTM 4N','WGS84_UTM 4S','WGS84_UTM 5N','WGS84_UTM 5S',
-                                      'WGS84_UTM 6N','WGS84_UTM 6S','WGS84_UTM 7N','WGS84_UTM 7S','WGS84_UTM 8N','WGS84_UTM 8S','WGS84_UTM 9N','WGS84_UTM 9S','WGS84_UTM 10S','WGS84_UTM 11N',
-                                      'WGS84_UTM 11S','WGS84_UTM 12N','WGS84_UTM 12S','WGS84_UTM 13N','WGS84_UTM 13S','WGS84_UTM 14N','WGS84_UTM 14S','WGS84_UTM 15N','WGS84_UTM 15S','WGS84_UTM 16N','WGS84_UTM 16S',
-                                      'WGS84_UTM 17N','WGS84_UTM 17S','WGS84_UTM 18N','WGS84_UTM 18S','WGS84_UTM 19N','WGS84_UTM 19S','WGS84_UTM 20N','WGS84_UTM 20S','WGS84_UTM 21N','WGS84_UTM 21S','WGS84_UTM 22N',
-                                      'WGS84_UTM 22S','WGS84_UTM 23N','WGS84_UTM 23S','WGS84_UTM 24N','WGS84_UTM 24S','WGS84_UTM 25N','WGS84_UTM 25S','WGS84_UTM 26N','WGS84_UTM 26S','WGS84_UTM 27N','WGS84_UTM 27S',
-                                      'WGS84_UTM 28N','WGS84_UTM 28S','WGS84_UTM 29N','WGS84_UTM 29S','WGS84_UTM 30N','WGS84_UTM 30S','WGS84_UTM 31N','WGS84_UTM 31S','WGS84_UTM 32N','WGS84_UTM 32S','WGS84_UTM 33N',
-                                      'WGS84_UTM 33S','WGS84_UTM 34N','WGS84_UTM 34S','WGS84_UTM 35N','WGS84_UTM 35S','WGS84_UTM 36N','WGS84_UTM 36S','WGS84_UTM 37N','WGS84_UTM 37S','WGS84_UTM 38N','WGS84_UTM 38S',
-                                      'WGS84_UTM 39N','WGS84_UTM 39S','WGS84_UTM 40N','WGS84_UTM 40S','WGS84_UTM 41N','WGS84_UTM 41S','WGS84_UTM 42N','WGS84_UTM 42S','WGS84_UTM 43N','WGS84_UTM 43S','WGS84_UTM 44N',
-                                      'WGS84_UTM 44S','WGS84_UTM 45N','WGS84_UTM 45S','WGS84_UTM 46N','WGS84_UTM 46S','WGS84_UTM 47N','WGS84_UTM 47S','WGS84_UTM 48N','WGS84_UTM 48S','WGS84_UTM 49N','WGS84_UTM 49S',
-                                      'WGS84_UTM 50N','WGS84_UTM 50S','WGS84_UTM 51N','WGS84_UTM 51S','WGS84_UTM 52N','WGS84_UTM 52S','WGS84_UTM 53N','WGS84_UTM 53S','WGS84_UTM 54N','WGS84_UTM 54S','WGS84_UTM 55N',
-                                      'WGS84_UTM 55S','WGS84_UTM 56N','WGS84_UTM 56S','WGS84_UTM 57N','WGS84_UTM 57S','WGS84_UTM 58N','WGS84_UTM 58S','WGS84_UTM 59N','WGS84_UTM 59S','WGS84_UTM 60N','WGS84_UTM 60S'])
+#         self.cmb_utm_source.addItems(["Select UTM","WGS84_UTM 28N","WGS84_UTM
+#         29N","WGS84_UTM 30N","WGS84_UTM 50N","WGS84_UTM 51N","WGS84_UTM
+#         52N","WGS84_UTM 53N"])
+        # 2021.11.05 JO : utm 좌표계 설정 수정
+        self.cmb_utm_target.addItems(_Dict_clip.cmb_utm)
         
         self.btn_input_utm.clicked.connect(lambda: self.Select_Folder_Dialog(self.txt_input_utm))
         self.btn_output_utm.clicked.connect(lambda: self.Select_Folder_Dialog(self.txt_output_utm))
@@ -176,7 +230,8 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         
         
         #Resampling ================================
-#         self.cmb_resample_method.addItems(["Select Method","near","bilinear","cubic","cubicspline","lanczos","average","mode","max","min","med","q1","q3"])
+#         self.cmb_resample_method.addItems(["Select
+#         Method","near","bilinear","cubic","cubicspline","lanczos","average","mode","max","min","med","q1","q3"])
         self.cmb_resample_method.addItems(["bilinear","near","cubic","cubicspline","lanczos","average","mode","max","min","med","q1","q3"])
         self.btn_input_resample.clicked.connect(lambda: self.Select_Folder_Dialog(self.txt_input_resample))
         self.btn_output_resample.clicked.connect(lambda: self.Select_Folder_Dialog(self.txt_output_resample))
@@ -192,27 +247,39 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         self.rdo_gsmap_acc.clicked.connect(self.Rdo_Selected)
         
         self.btn_input_accum.clicked.connect(self.select_files)
-        #self.btn_input_accum.clicked.connect(lambda: self.Select_Folder_Dialog(self.txt_input_accum))
+        #self.btn_input_accum.clicked.connect(lambda:
+        #self.Select_Folder_Dialog(self.txt_input_accum))
 
         self.btn_output_accum.clicked.connect(lambda: self.Select_Folder_Dialog(self.txt_output_accum))
-        # self.btn_shp_accum.clicked.connect(lambda: self.Save_File_Dialog(self.txt_reference_shp,"shp"))
+        # self.btn_shp_accum.clicked.connect(lambda:
+        # self.Save_File_Dialog(self.txt_reference_shp,"shp"))
         
         self.btn_apply_accum.clicked.connect(self.Accum_apply_Click)
         
-        #Make CSV
-        self.btn_csv_shp.clicked.connect(self.read_SHP)
+        #Make CSV =====================================
+#         self.btn_csv_shp.clicked.connect(self.read_SHP)
+        self.chk_point_shp.setChecked(True) # 기본값 체크
+        self.btn_csv_shp.clicked.connect(lambda:self.Shape_Select(self.txt_csv_shp))
         self.btn_csv_csv.clicked.connect(lambda: self.Save_File_Dialog(self.txt_shp_field,"csv"))
-        self.btn_raster_tiff.clicked.connect(self.raster_tiff_select)
+#         self.btn_raster_tiff.clicked.connect(self.raster_tiff_select)
+        self.btn_raster_tiff.clicked.connect(lambda:self.Save_File_Dialog(self.txt_raster_tiff,"tif"))
+        
         self.btn_apply_CSV.clicked.connect(self.CSV_apply_Click)
         
         # Function ====================================
         self.btn_apply_Function.clicked.connect(self.Fun_apply_Click)
+        #Result load to canvas 버튼 기본 체크 상태
+        self.chk_addLater_func.setChecked(True)
         # 테이블 데이터 셋팅
         self.Set_table_list_fun()
         self.txt_function_txt.setText("x+1")
         self.btn_input_Function.clicked.connect(lambda: self.Select_Folder_Dialog(self.txt_output_fun)) #폴더 선택으로 변경
         
         # make ASC ===================================
+
+
+
+
         self.txt_input_asc.setEnabled(False) #only 버튼을 클릭하여 파일 선택할 수 있음
 #         self.btn_input_asc.clicked.connect(self.select_ASC_files)
         self.btn_input_asc.clicked.connect(lambda:self.Select_Folder_Dialog(self.txt_input_asc))
@@ -222,11 +289,13 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         self.btn_apply_ASC.clicked.connect(self.ASC_apply_Click)
         
         # 위성보정모듈
-        # Satellite Correction======================================================
-        self._ASC_filename=[]
+        # Satellite
+        # Correction======================================================
+        self._ASC_filename = []
         self._CSV_filename = []
-        self._PNG_filename=[]
+        self._PNG_filename = []
         
+
         self.rdo_Layer.setChecked(True)
         self.Set_table_list_sat()
         self.Select_radio_event()
@@ -237,13 +306,16 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         
         # 2018-10-31츄가
         # 사용자가 참조할 SHP 파일 선택 이벤트.
-        self.btn_inputSHP.clicked.connect(self.input_Ref_SHP)
+#         self.btn_inputSHP.clicked.connect(self.input_Ref_SHP)
+        self.btn_inputSHP.clicked.connect(lambda:self.input_Ref_file(self.txt_inputSHP,"shp"))
+        
         
         #사용자가 ASC 파일 선택 이벤트
         self.btnOpenDialog_Input.clicked.connect(self.Select_ASC_event)
 
         # CSV 파일 선택 이벤트
-        self.btn_Select_Covert_File.clicked.connect(self.Select_CSV_event)
+#         self.btn_Select_Covert_File.clicked.connect(self.Select_CSV_event)
+        self.btn_Select_Covert_File.clicked.connect(lambda:self.input_Ref_file(self.txt_Convert_path,"csv"))
 
         # Convert 버튼 이벤트
 #         self.btn_Covert.clicked.connect(self.Convert_CSV_event)
@@ -251,7 +323,8 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         
         self.SetTable_header()
 #         self.lisw_Convert_file.setColumnCount(1)
-#         self.lisw_Convert_file.setHorizontalHeaderLabels(["ground data List"])
+#         self.lisw_Convert_file.setHorizontalHeaderLabels(["ground data
+#         List"])
         
 
         # btn_Apply 버튼 이벤트 모든 리스트 파일이 있을때 작동
@@ -265,7 +338,8 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         self.set_btn_icon()
 
         #사용자가 output 다이얼로그를 눌렀을 때 이벤트 처리
-        self.btnOutputDialog.clicked.connect(self.Output_path_Dialog)
+#         self.btnOutputDialog.clicked.connect(self.Output_path_Dialog)
+        self.btnOutputDialog.clicked.connect(lambda:self.Select_Folder_Dialog(self.txtOutputDataPath))
 
         #OK 버튼 누르면 Satellite correction이 수행됨
         #self.btnOK.clicked.connect(self.run_Result)
@@ -275,48 +349,66 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         #Make PNG 체크박스는 기본 체크 상태
         self.chk_makePng.setChecked(True)
 
-        # 멀티 셀렉트 옵션 
-        self.tbl_asc_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.btl_png_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        # 멀티 셀렉트 옵션
+#         self.tbl_asc_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+#         self.btl_png_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
-        # Interval_box. duration 조절, GIF의 속도를 조절. 초기값은 0.5 기본 값으로 셋팅
+        # Interval_box.  duration 조절, GIF의 속도를 조절.  초기값은 0.5 기본 값으로 셋팅
 #         self.Interval_box.setValue(0.5)
 
-        # 2018-06-11 박: 
+        # 2018-06-11 박:
         self.btn_csvUp.clicked.connect(lambda : self.MoveUp(self.lisw_Convert_file))
         self.btn_csvDown.clicked.connect(lambda: self.MoveDown(self.lisw_Convert_file))
         self.btn_csvRemove.clicked.connect(lambda: self.ReMove(self.lisw_Convert_file,self._CSV_filename))
-#         self.btn_csvRemove.clicked.connect(lambda: self.ReMove(self.lisw_Convert_file,self._CSV_filename))
+#         self.btn_csvRemove.clicked.connect(lambda:
+#         self.ReMove(self.lisw_Convert_file,self._CSV_filename))
 
         self.btn_ASCup.clicked.connect(lambda : self.MoveUp(self.lisw_ASC))
         self.btn_ASCdown.clicked.connect(lambda: self.MoveDown(self.lisw_ASC))
         self.btn_ASCremove.clicked.connect(lambda: self.ReMove(self.lisw_ASC,self._ASC_filename))
-#         self.btn_ASCremove.clicked.connect(lambda: self.ReMove(self.lisw_ASC,_ASC_filename))
+#         self.btn_ASCremove.clicked.connect(lambda:
+#         self.ReMove(self.lisw_ASC,_ASC_filename))
 
-        # GIF 만들기
-#         self.btn_makeGIF.clicked.connect(self.make_gif)
-#         self.btn_save_gif_path.clicked.connect(self.Save_gif_path)
-#         self.btn_select_asc_files.clicked.connect(lambda:self.Folder_List("ASC"))
-#         self.btn_make_png_files.clicked.connect(self.Make_png_menu)
-#         self.btn_select_png_Folder.clicked.connect(lambda:self.Folder_List("PNG"))
-#         self.btn_select_save_path_imag.clicked.connect(lambda:self.saveFileDialog("GIF"))
-#         self.btn_make_gif_file.clicked.connect(self.Make_gif_user)
-        #==========================================================================
-        
-        
-        
+        # CM ====================================
+        #2020-08-04 박:CM 모듈
+
+        self._ASC_filename_CM = []
+        self._CSV_filename_CM = []
+        self._PNG_filename_CM = []
+        self.btn_inputSHP_CM.clicked.connect(lambda:self.input_Ref_file(self.txt_inputSHP_CM,"shp"))
+        self.btn_Select_Covert_File_CM.clicked.connect(lambda:self.input_Ref_file(self.txt_Convert_path_CM,"csv"))
+        self.btnOpenDialog_Input_CM.clicked.connect(self.Select_ASC_event_CM)
+        self.btn_Covert_CM.clicked.connect(self.Convert_CSV_time_CM)
+        #CM 모듈 적용
+        self.btn_Apply_CM.clicked.connect(self.Apply_CM)
+        self.btnOutputDialog_CM.clicked.connect(lambda:self.Select_Folder_Dialog(self.txtOutputDataPath_CM))
+
+        # 2020-09-10 박:
+        self.btn_csvUp_CM.clicked.connect(lambda : self.MoveUp(self.lisw_Convert_file_CM))
+        self.btn_csvDown_CM.clicked.connect(lambda: self.MoveDown(self.lisw_Convert_file_CM))
+        self.btn_csvRemove_CM.clicked.connect(lambda: self.ReMove(self.lisw_Convert_file_CM,self._CSV_filename_CM))
+
+        self.btn_ASCup_CM.clicked.connect(lambda : self.MoveUp(self.lisw_ASC_CM))
+        self.btn_ASCdown_CM.clicked.connect(lambda: self.MoveDown(self.lisw_ASC_CM))
+        self.btn_ASCremove_CM.clicked.connect(lambda: self.ReMove(self.lisw_ASC_CM,self._ASC_filename_CM))
         
         # make image ====================================
-        # 멀티 셀렉트 옵션 
+        # 멀티 셀렉트 옵션
         self.cmb_symbol.addItems(["Select_Symbol", 'circle','square','triangle','cross_fill'])
+        self.cmb_base_map.setCurrentIndex(1)
+        self.cmb_base_map.currentIndexChanged.connect(self.select_basemap)  
+
         self.tbl_asc_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.btl_png_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
         
+
+
         #make GIF
         self.btn_select_asc_files.clicked.connect(lambda:self.Folder_List("ASC"))
         self.btn_make_png_files.clicked.connect(self.Make_png_menu)
         self.btn_select_png_Folder.clicked.connect(lambda:self.Folder_List("PNG"))
-        self.btn_select_save_path_imag.clicked.connect(lambda:self.saveFileDialog("GIF"))
+        self.btn_select_save_path_imag.clicked.connect(lambda:self.saveFileDialog(self.txt_save_gif_path_imag,"GIF"))
         self.btn_make_gif_file.clicked.connect(self.Make_gif_user)
         
         #png_canvas, Canvas 추가함.
@@ -324,13 +416,187 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         self.shp_layer_point = ""
         self.shp_layer_line = ""
         self.shp_layer_polygon = ""
+        self.changeLabel = "None"
+        self.changeLabel_pl = "None"
+        self.changeLabel_po = "None"
+
+        #2020-07-28 박: 버튼 색상 추가
+        self.btn_changecolor_po.setStyleSheet("background-color:rgb(94,94,94,255);")
+        self.btn_changecolor_pl.setStyleSheet("background-color:rgb(0,0,240,255);")
+        self.btn_changecolor_point.setStyleSheet("background-color:rgb(255,0,0,255);")
+
         self.btn_pngshp_polygon.clicked.connect(self.btn_baseShp_polygon)
+        self.btn_changecolor_po.setToolTip("Change color polygon")
+        self.btn_changecolor_po.clicked.connect(self.changeColor_Picker_polygon)
+        self.btn_changecolor_pl.setToolTip("Change color line")
+        self.btn_changecolor_pl.clicked.connect(self.changeColor_Picker_line)
+        self.btn_changecolor_point.setToolTip("Change color point")
+        self.btn_changecolor_point.clicked.connect(self.changeColor_Picker_point)
+        
         self.btn_pngshp_line.clicked.connect(self.btn_baseShp_line)
         self.btn_pngshp_point.clicked.connect(self.btn_baseShp_point)
         self.btn_output_png.clicked.connect(lambda :self.Select_Folder_Dialog(self.txt_output_png))
+
+    def AboutOpen(self):
+        canvas = AboutDialog(None)
+        canvas.exec_()
+
+    #2020-09-09 박:CM 모듈 적용
+    def Apply_CM(self):
+        try:
+            self.lisw_ASC_CM.rowCount()
+            self.lisw_Convert_file_CM.rowCount()
+            if self.lisw_ASC_CM.rowCount() != self.lisw_Convert_file_CM.rowCount():
+                _util.MessageboxShowInfo("GPM NOTICE", "Number of CSV FILES and ASC FILES do not match.")
+                return
+        
+            # 보정 결과가 출력될 폴더 경로를 지정해야 함.
+            if self.txtOutputDataPath_CM.text().strip() == "":
+                _util.MessageboxShowInfo("GPM NOTICE", " NOT set Output Path.")
+                return
+            else:
+                output_path = self.txtOutputDataPath_CM.text()
+
+            self.satellite_progressBar_CM.setValue(0)
+            self.satellite_progressBar_CM.setMaximum(self.lisw_ASC_CM.rowCount())
+            QApplication.processEvents()
+            dist = self.decimalBox_CM.value()
+            for i in range(self.lisw_ASC_CM.rowCount()):
+                TIf_path = self.txt_Input_data_CM.text() + "/" + self.lisw_ASC_CM.item(i, 0).text()
+                CSV_path = self.lisw_Convert_file_CM.item(i, 0).text()
+                CM_Method.cm_method(TIf_path,dist,CSV_path,output_path,self.tbl_Result_CM)
+                self.satellite_progressBar_CM.setValue(i + 1)
+                QApplication.processEvents()
+            if self.lisw_ASC_CM.rowCount() == self.tbl_Result_CM.rowCount():
+                _util.MessageboxShowInfo("CM Module","CM module work has been completed.")
+        except Exception as e:
+            _util.MessageboxShowError("CM Module",str(e))
+
+
+
+    def File_dialog(self,type,txtbox):
+        if type == "RASTER":
+            self.select_raster = QFileDialog.getOpenFileName(self, 'Select Raster file','', 'tif, TIF (*.tif)')[0]
+            txtbox.setText(str(self.select_raster))
+        else:
+            self.select_SHP = QFileDialog.getOpenFileName(self, "Select Shape file",'c://', '*.shp *.SHP')[0]
+            txtbox.setText(str(self.select_SHP))
+
+    def Run_CM_Module(self):
+        CM_Raster_path = self.txt_CM_Raster.text()
+        CM_Shape_Path = self.txt_CM_Shape.text()
+        if _util.CheckFile(CM_Raster_path) and _util.CheckFile(CM_Shape_Path):
+            value = self.spb_distance.value()
+            result = CM_Method.cm_method_run(CM_Raster_path,value,CM_Shape_Path)
+        else:
+            _util.MessageboxShowError("CM Module","Please check the raster file or shape file path")
+
+    def select_basemap(self,index):
+        #구글 맵 설정
+        CRS = QgsCoordinateReferenceSystem(3857, QgsCoordinateReferenceSystem.PostgisCrsId)
+        self.gpm_canvas.setDestinationCrs(CRS)
+        if index == 1:
+            self.basmap_layer = self.getBasemap("Google satellite")
+        elif index == 2:
+            self.basmap_layer = self.getBasemap("OSM")
+
+        #QgsProject.instance().addMapLayer(basmap_layer,False)
+        #self.gpm_canvas.setLayers(self.layers+[basmap_layer])
+        #layer_list.clear()
+        ##self.zoomToSelected(self.rasterLayer)
+        #basmap_layer
+        
+    def zoomToSelected(self, layer):
+        bfExtent = layer.extent()
+        point1 = QgsMapToolEmitPoint(self.gpm_canvas).toMapCoordinates(layer, QgsPointXY(bfExtent.xMinimum(), bfExtent.yMinimum()))
+        point2 = QgsMapToolEmitPoint(self.gpm_canvas).toMapCoordinates(layer, QgsPointXY(bfExtent.xMaximum(), bfExtent.yMaximum()))
+        afExtent = QgsRectangle(point1, point2)
+        self.gpm_canvas.zoomToFeatureExtent(afExtent)
+        self.gpm_canvas.refresh()
+
+    def getBasemap(self, kind):
+        url = ""
+        if kind == "OSM":
+            url = "type=xyz&url=http://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        
+        elif kind == "OSM Wmflabs":
+            url = "type=xyz&url=http://tiles.wmflabs.org/osm-no-labels/{z}/{x}/{y}.png"
+
+        elif kind == "Google basic":
+            url = "type=xyz&url=https://mt1.google.com/vt/lyrs%3Dr%26x%3D{x}%26y%3D{y}%26z%3D{z}"
+        
+        elif kind == "Google hybrid":
+            url = "type=xyz&url=https://mt1.google.com/vt/lyrs%3Dy%26x%3D{x}%26y%3D{y}%26z%3D{z}"
+        
+        elif kind == "Google satellite":
+            url = "type=xyz&url=https://mt1.google.com/vt/lyrs%3Ds%26x%3D{x}%26y%3D{y}%26z%3D{z}" 
+
+        #elif kind=="Google streets":
+        #    url =
+        #    "type=xyz&url=https://mt1.google.com/vt/lyrs%3Dm%26x%3D{x}%26y%3D{y}%26z%3D{z}"
+            
+        basemapLayer = QgsRasterLayer(url, "GPM_BaseMap_" + kind, "wms")
+        return basemapLayer
+
+    def qTabBar(self):
+        self.firstTab = QTabBar()
+        self.secondTab = QTabBar()
+        layout = QGridLayout()
+        baseLayout = self.centralwidget.layout()
+        
+        self.firstTab.addTab("")        
+        self.firstTab.addTab("Data Download")        
+        self.firstTab.addTab("Convert to TIFF")  
+        self.firstTab.addTab("KML")
+        self.firstTab.addTab("Clip")   
+        self.firstTab.addTab("UTM")   
+        self.firstTab.addTab("Resampling")   
+ 
+        self.secondTab.addTab("")        
+        self.secondTab.addTab("Accum")        
+        self.secondTab.addTab("Make CSV")        
+        self.secondTab.addTab("Function")                  
+        self.secondTab.addTab("Make ASC")                    
+        self.secondTab.addTab("Satellite correction")  
+        self.secondTab.addTab("CM Module")
+        self.secondTab.addTab("Make Image")                  
+             
+        
+        self.firstTab.setExpanding(False) #창 넓이에 맞춰 늘어나지 않음
+        self.secondTab.setExpanding(False)
+        style = "QTabBar::tab:first{ max-width: 0px; } QTabBar::tab:first:selected{ border: 0px; }"
+        self.firstTab.setStyleSheet(style)
+        self.secondTab.setStyleSheet(style)
+        self.firstTab.setDrawBase(False) # 탭 하단에 선을 표시하지 않음
+        
+        #layout 세팅
+        #r, c, rspan, cspan
+        layout.addWidget(self.firstTab, 0, 0)
+        layout.addWidget(self.secondTab, 1, 0)
+        layout.addWidget(self.stackedWidget, 2, 0)
+        layout.setSpacing(0) 
+        self.centralwidget.setLayout(layout)
+        baseLayout.addLayout(layout, 0, 0)        
+
+        self.firstTab.setCurrentIndex(1)
+
+        self.setStyleSheet("QStackedWidget#stackedWidget{border: 1px solid; border-color: rgb(200, 200, 200);}")
     
-    
-    
+    def connectionTabBar(self, type):
+        f = self.firstTab.currentIndex()
+        s = self.secondTab.currentIndex()
+        index = 0
+        
+        if type == "second" and s > 0:
+            self.firstTab.setCurrentIndex(0)
+            self.secondTab.setCurrentIndex(s)
+            index = s + (self.firstTab.count() - 2)
+        elif type == "first" and f > 0:
+            self.secondTab.setCurrentIndex(0)
+            self.firstTab.setCurrentIndex(f)
+            index = f - 1
+        
+        self.stackedWidget.setCurrentIndex(index)
     
     # CLIP 테이블에 레이어 목록을 셋팅 하기
     def Set_Clip_table_layerlist(self):
@@ -343,29 +609,38 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         self.tb_clip_Tiff.setStyleSheet(stylesheet)
         count = 0
         
-        #불편해서 프로그레스바 추가함. 힘들다
+        #불편해서 프로그레스바 추가함.  힘들다
         self.clip_progressBar.setValue(0)
         
         for layer in (self.convert_tiff):
             self.tb_clip_Tiff.insertRow(count)
-#             self.tb_clip_Tiff.setItem(count, 0, QTableWidgetItem(layer.name()))
+#             self.tb_clip_Tiff.setItem(count, 0,
+#             QTableWidgetItem(layer.name()))
             self.tb_clip_Tiff.setItem(count, 0, QTableWidgetItem(layer))
-            count=count+1
+            count = count + 1
          # 테이블 데이터 수정 못하게 옵션
         self.tb_clip_Tiff.setEditTriggers(QTableWidget.NoEditTriggers)
         
+    # accum check 박스 초기화
+    def clear_accum_check(self):
+        self.chk_Accum_1H.setChecked(False)
+        self.chk_Accum_3H.setChecked(False)
+        self.chk_Accum_6H.setChecked(False)
+        self.chk_Accum_9H.setChecked(False)
+        self.chk_Accum_12H.setChecked(False)
+        self.chk_Accum_24H.setChecked(False)
 
     def Rdo_Selected(self):
         #Data Download 부분
-        if self.rdo_GPM.isChecked():
-            self.txt_userID.setEnabled(True)
-            self.txt_userPW.setEnabled(True)
-        if self.rdo_cmorph.isChecked():
-            self.txt_userID.setEnabled(False)
-            self.txt_userPW.setEnabled(False)
-        if self.rdo_gsmap.isChecked():
-            self.txt_userID.setEnabled(True)
-            self.txt_userPW.setEnabled(True)
+        #if self.rdo_GPM.isChecked():
+        #    self.txt_userID.setEnabled(True)
+        #    self.txt_userPW.setEnabled(True)
+        #if self.rdo_cmorph.isChecked():
+        #    self.txt_userID.setEnabled(False)
+        #    self.txt_userPW.setEnabled(False)
+        #if self.rdo_gsmap.isChecked():
+        #    self.txt_userID.setEnabled(True)
+        #    self.txt_userPW.setEnabled(True)
         
         #Convert to tiff 부분
 #         if self.rdo_GPM_convert.isChecked():
@@ -432,8 +707,7 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             self.chk_Accum_9H.setEnabled(True)
             self.chk_Accum_12H.setEnabled(True)
             self.chk_Accum_24H.setEnabled(True)
-            
-        
+
         if self.rdo_gsmap_acc.isChecked():
             self.clear_accum_check()
             self.chk_Accum_1H.setEnabled(False)
@@ -443,71 +717,167 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             self.chk_Accum_12H.setEnabled(True)
             self.chk_Accum_24H.setEnabled(True)
     
-    #accum check 박스 초기화
-    def clear_accum_check(self):
-        self.chk_Accum_1H.setChecked(False)
-        self.chk_Accum_3H.setChecked(False)
-        self.chk_Accum_6H.setChecked(False)
-        self.chk_Accum_9H.setChecked(False)
-        self.chk_Accum_12H.setChecked(False)
-        self.chk_Accum_24H.setChecked(False)
+    
 
     def Shape_Select(self,txt):
-        fname = QFileDialog.getOpenFileName(self, 'Open file','c://', "Shape files (*.shp)")
+        if txt.text() != "":
+            fname = QFileDialog.getOpenFileName(self, 'Open file',"", "Shape files (*.shp)")
+        else:
+            #초기경로 ==>  C:\ 경로
+            fname = QFileDialog.getOpenFileName(self, 'Open file','c://', "Shape files (*.shp)")
+        
 #         _util.MessageLogShowInfo("select",str(fname[0]))
         if _util.CheckFile(str(fname[0])):
             txt.setText(str(fname[0]))
-
+            
+            if (txt == self.txt_csv_shp):
+                self.read_SHP()
+    
+    # 잠조할 SHP 파일 입력 받음.
+    def input_Ref_SHP(self):
+#         dir = os.path.dirname(sys.argv[0])
+        try:
+#             global select_SHP
+            self.select_SHP = QFileDialog.getOpenFileName(self, "Select Shape file",'c://', '*.shp *.SHP')[0]
+#             _util.MessageLogShowInfo("REF_SHP",self.select_SHP)
+            self.txt_inputSHP.setText(str(self.select_SHP))
+            
+        except Exception as e:
+            self.txt_inputSHP.setText("")
+            return
+        
+    #Satellite correction, 참조되는 파일 입력
+    def input_Ref_file(self,txt,type):
+        #global select_file,select_file_path
+        try:
+            if txt.text() == "":
+                if type == "shp":
+                    self.select_SHP = QFileDialog.getOpenFileName(self, "Select Shape file",'c://', '*.shp *.SHP')[0]
+                    txt.setText(str(self.select_SHP))
+                if type == "csv":
+                    self.select_file = QFileDialog.getOpenFileName(self, "Select csv file.",'c://', '*.csv *.CSV')[0]
+                    txt.setText(str(self.select_file))
+                    self.select_file_path = os.path.dirname(self.select_file)
+                
+            else:
+                if type == "shp":
+                    self.select_SHP = QFileDialog.getOpenFileName(self, "Select Shape file",'', '*.shp *.SHP')[0]
+                    txt.setText(str(self.select_SHP))
+                if type == "csv":
+                    self.select_file = QFileDialog.getOpenFileName(self, "Select csv file.",'', '*.csv *.CSV')[0]
+                    txt.setText(str(self.select_file))
+                    self.select_file_path = os.path.dirname(self.select_file)
+            
+        except Exception as e:
+            # 파일 선택 창을 그냥 닫는 경우
+            self.txt_Convert_path.setText("")
+            return
+        
+            
+            
+    
     def Select_Folder_Dialog(self,txt):
-        Folder = str(QFileDialog.getExistingDirectory(self, "Select Directory",'c://'))
+        if txt.text() != "":
+            Folder = str(QFileDialog.getExistingDirectory(self, "Select Directory",''))
+        else:
+            Folder = str(QFileDialog.getExistingDirectory(self, "Select Directory",'c://'))
+            
         if _util.CheckKorea(Folder) == True:
-            _util.MessageboxShowError("GPM","Check Path, No use Korean.\nPlease use English.")
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter","Check Path, No use Korean.\nPlease use English.")
             return
         if _util.CheckFolder(Folder):
             txt.setText(Folder)
+        
+        #선택 폴더가 있다면
+#         if Folder !="":
+#            Folder = Folder.replace("\\","/")
+#            txt.setText(Folder)
+        #선택 폴더가 없다면
+        if Folder == "":
+            txt.setText("")    
 
     # 파일 선택 다이얼 로그 나중에 Util 파일로 변경해야함
-    def Select_File_Dialog(self, txt):
-        filename = QFileDialog.getOpenFileName(self, 'select output file', '','GRM Project xml files (*.tif)',options=QFileDialog.DontUseNativeDialog)
-        txt.setText(filename)
+    # NOT USED
+#     def Select_File_Dialog(self, txt):
+#         filename = QFileDialog.getOpenFileName(self, 'select output file',
+#         '','GRM Project xml files
+#         (*.tif)',options=QFileDialog.DontUseNativeDialog)
+#         txt.setText(filename)
 
     def  Save_File_Dialog(self,txt,type):
         try:
-            if type=="asc":
-                filename =  QFileDialog.getSaveFileName(self, 'save file','c://', filter ="asc (*.asc *.)")
+            if type == "asc":
+                if txt.text() != "":
+                    filename = QFileDialog.getSaveFileName(self, 'save file','', filter ="asc (*.asc *.)")
+                else:
+                    filename = QFileDialog.getSaveFileName(self, 'save file','c://', filter ="asc (*.asc *.)")
                 txt.setText(str(filename[0]))
             elif type == "shp":
-                filename = QFileDialog.getSaveFileName(self, 'save file', 'c://', filter="shp (*.shp *.)")
+                if txt.text() != "":
+                    filename = QFileDialog.getSaveFileName(self, 'save file', '', filter="shp (*.shp *.)")
+                else:
+                    filename = QFileDialog.getSaveFileName(self, 'save file', 'c://', filter="shp (*.shp *.)")
                 txt.setText(str(filename[0]))
-            elif type=="csv":
-                filename = QFileDialog.getSaveFileName(self, 'save file', 'c://', filter="csv (*.csv *.)")
-                txt.setText(str(filename[0]))
+            elif type == "csv":
+                if txt.text() != "":
+                    filename = QFileDialog.getSaveFileName(self, 'save file', '', filter="csv (*.csv *.)")
+                else:
+                    filename = QFileDialog.getSaveFileName(self, 'save file', 'c://', filter="csv (*.csv *.)")
+                txt.setText(str(filename[0]))    
+            elif type == "tif":
+                if txt.text() != "":
+                    self.filename = QFileDialog.getOpenFileNames(self, 'Open file','', 'tif, TIF (*.tif)')
+#                     txt.setText(str(self.filename[0]))
+                else:
+                    self.filename = QFileDialog.getOpenFileNames(self, 'Open file','c://', 'tif, TIF (*.tif)')
+                
+#                 _util.MessageLogShowInfo("CSV
+#                 RASTER",str(type(self.filename[0])))
+                if (self.filename[0] == []):
+                    txt.setText("")
+                else:
+                    txt.setText(str(self.filename[0]))
+                    
+            
         except Exception as se:
-            _util.MessageboxShowInfo("GPM", str(se))
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", str(se))
     
-    #저장 경로 입력 받기 
-    def saveFileDialog(self,type):
-        if type.upper()=="TIF":
-            file = str(QFileDialog.getSaveFileName(self, "Save Folder Path", "C://", ".tif"))
-            self.txt_output_fun.setText(file)
+    
+    
+    
+    #저장 경로 입력 받기
+    def saveFileDialog(self,txt,type):
+        
+        if type.upper() == "TIF":
+            if (txt.text() == ""):
+                file = str(QFileDialog.getSaveFileName(self, "Save Folder Path", "C://", ".tif"))
+            else:
+                file = str(QFileDialog.getSaveFileName(self, "Save Folder Path", "", ".tif"))
+            txt.setText(file)
         else:
-            file = (QFileDialog.getSaveFileName(self, "Save GIF Path", "C://", ".gif"))
-            self.txt_save_gif_path_imag.setText(file[0]+file[1])
+            if (txt.text() == ""):
+                file = (QFileDialog.getSaveFileName(self, "Save GIF Path", "C://", ".gif"))
+            else:
+                file = (QFileDialog.getSaveFileName(self, "Save GIF Path", "", ".gif"))
+            txt.setText(file[0] + file[1])
     
-    def raster_tiff_select(self):
-        self.filenames = QFileDialog.getOpenFileNames(self, 'Open file','c://', 'tif, TIF (*.tif)')
-        self.txt_raster_tiff.setText(str(self.filenames[0]))
-#         QFileDialog.getOpenFileNames(self,"Select Input ASC FILES",dir,"*.asc *.ASC ",options=QtGui.QFileDialog.DontUseNativeDialog)
+#     def raster_tiff_select(self):
+#         self.filenames = QFileDialog.getOpenFileNames(self, 'Open
+#         file','c://', 'tif, TIF (*.tif)')
+#         self.txt_raster_tiff.setText(str(self.filenames[0]))
+#         QFileDialog.getOpenFileNames(self,"Select Input ASC FILES",dir,"*.asc
+#         *.ASC ",options=QtGui.QFileDialog.DontUseNativeDialog)
 
     #raster 읽어서 nodata 불러오기
     def read_Layer_Get_Noadta(self,ratserLayer):
-        self.Nodata="";self.Projection=""
+        self.Nodata = ""
+        self.Projection = ""
         tiff_ds = gdal.Open(ratserLayer)
         self.Nodata = str(tiff_ds.GetRasterBand(1) .GetNoDataValue())
 #         _util.MessageLogShowInfo("Layer Info",str(self.Nodata))
         prj = tiff_ds.GetProjection()
-        srs=osr.SpatialReference(wkt=prj)
-        self.Projection = str(srs.GetAttrValue('authority',0)+":"+srs.GetAttrValue('authority',1))        
+        srs = osr.SpatialReference(wkt=prj)
+        self.Projection = str(srs.GetAttrValue('authority',0) + ":" + srs.GetAttrValue('authority',1))        
 #         _util.MessageLogShowInfo("Layer Info",str(self.Projection))
             
     # 테이블 헤더 설정
@@ -516,9 +886,27 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         self.lisw_ASC.setRowCount(0)
         self.lisw_ASC.setHorizontalHeaderLabels(["ASC"])
 
+
         self.lisw_Convert_file.setColumnCount(1)
         self.lisw_Convert_file.setRowCount(0)
         self.lisw_Convert_file.setHorizontalHeaderLabels(["CSV"])
+
+
+        #2020-09-09 박: CM 모듈 추가
+        self.lisw_ASC_CM.setColumnCount(1)
+        self.lisw_ASC_CM.setRowCount(0)
+        self.lisw_ASC_CM.setHorizontalHeaderLabels(["TIF"])
+
+        self.tbl_Result_CM.setColumnCount(1)
+        self.tbl_Result_CM.setRowCount(0)
+        self.tbl_Result_CM.setHorizontalHeaderLabels(["Result Files"])
+
+
+
+
+        self.lisw_Convert_file_CM.setColumnCount(1)
+        self.lisw_Convert_file_CM.setRowCount(0)
+        self.lisw_Convert_file_CM.setHorizontalHeaderLabels(["CSV"])
 
     def MoveUp(self,table):
         row = table.currentRow()
@@ -530,7 +918,7 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                 table.setCurrentCell(row - 1, column)
             table.removeRow(row + 1)
             QgsMessageLog.logMessage(str(row),"GPM MoveUp")
-        QgsMessageLog.logMessage(str(_ASC_filename),"GPM MoveUp")
+        #QgsMessageLog.logMessage(str(_ASC_filename),"GPM MoveUp")
 
 
     def MoveDown(self,table):
@@ -548,76 +936,119 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 
     def ReMove(self,table,layers):
         global _layers
-#     def ReMove(self,table,list): #이 방법을 수용? 할 수는 있음 Remove는 단 순서 바꾸는 건 좀 많이 다름. 꼬임
+#     def ReMove(self,table,list): #이 방법을 수용?  할 수는 있음 Remove는 단 순서 바꾸는 건 좀 많이
+#     다름.  꼬임
         row = table.currentIndex().row()
-        mess="Are you sure you want to delete the selected items?"
-        result=QMessageBox.question(None, "Remove",mess,QMessageBox.Yes, QMessageBox.No)
+        mess = "Are you sure you want to delete the selected items?"
+        result = QMessageBox.question(None, "Remove",mess,QMessageBox.Yes, QMessageBox.No)
         if result == QMessageBox.Yes:
             table.removeRow(row)
             layers.remove(layers[row])
             _util.MessageLogShowInfo("SAT_table_remove",str(row))
             try:
 #                 if (_layers[row].id() in _layers.id()):
-                #레이어가 올라오지 않은 상태도 처리 해야 하는데.. 일단 이렇게 처리..
-                QgsProject.instance().removeMapLayers( [_layers[row].id()] )
+                #레이어가 올라오지 않은 상태도 처리 해야 하는데..  일단 이렇게 처리..
+                QgsProject.instance().removeMapLayers([_layers[row].id()])
                 _layers = QgsProject.instance().layerTreeRoot().layerOrder()
             except Exception as exc:
                 _util.MessageLogShowInfo("Remove",str(exc))
-#             _util.MessageLogShowInfo("SAT_tabel_remove 2",str(_layers[row].id()))
+#             _util.MessageLogShowInfo("SAT_tabel_remove
+#             2",str(_layers[row].id()))
 #             _util.MessageLogShowInfo("SAT_table_remove",str(layers))
 #             list.remove(list[row])
-#             _ASC_filename.remove(_ASC_filename[row]) #이렇게 하면 제거는 됨. (다만 리스트를 고정하면 안될 거 같음)
+#             _ASC_filename.remove(_ASC_filename[row]) #이렇게 하면 제거는 됨.  (다만 리스트를
+#             고정하면 안될 거 같음)
 #         QgsMessageLog.logMessage(str(list),"GPM remove")
 #             2018-09-10 JO : 목록에 표시만 제거될 뿐 내부적으로 적용 안됨.
     
     
         
-    
     #============= Data Download =========================
-    def data_download(self):
+    def data_download(self,type):
         try:
             self.wget_progress.setValue(0) #프로그레스 바 초기값
-            
-            userId =self.txt_userID.text() ; userPw = self.txt_userPW.text() #사용자 ID/PW
-            
+            self.batch_path = ""
+            ##네트워크 확인해서 접속 끊어 지면 다운로드 중지
+            #network_flag = _util.connected_to_internet()
+            #if not(network_flag):
+            #    _util.MessageboxShowError("Network error"," Check network connection.")
+            #    return
+
             #다운로드 받을 데이터 선택
-            #GPM or CMORPH
-            if self.rdo_GPM.isChecked():
-                if (userId =="" and userPw==""):
-#                     QgsMessageLog.logMessage("Make sure you enter your ID and password.","GPM")
-                    _util.MessageboxShowInfo("GPM", "Make sure you enter your ID and password.")
+            if type == "GPM":
+                userId = self.txt_userID.text()
+                userPw = self.txt_userPW.text() #사용자 ID/PW
+                if (userId == "" and userPw == ""):
+                    _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Make sure you enter your ID and password.")
                     return
-#                 _util.MessageboxShowInfo("GPM", "A batch file was created on the desktop.")
-                
-#                 datadownload=wget.create_bat_script(userId,userPw,self.start_date.text(),self.end_date.text(),self.txt_bat_path.text(),"tif")
-                datadownload=wget.create_bat_script(userId,userPw,self.start_date.text(),self.end_date.text(),self.txt_bat_path.text(),"")
-#                 QgsMessageLog.logMessage(str(datadownload),"WGET 1")
-            elif self.rdo_cmorph.isChecked():
-#                 self.txt_url.setText("https://ftp.cpc.ncep.noaa.gov/precip/CMORPH_V1.0/CRT/0.25deg-3HLY/")
-                datadownload=wget.cmorph_data_download(self.start_date.text(),self.end_date.text(),self.txt_bat_path.text(),"")
-#                 QgsMessageLog.logMessage(str(datadownload),"WGET 2")
-            elif self.rdo_gsmap.isChecked():
-                datadownload = wget.GSMap_data_download(userId,userPw,self.start_date.text(),self.end_date.text(),self.txt_bat_path.text(),"")
+                download_type = self.cmb_Downlaod_Type.currentText()
+                if download_type == "Select download type":
+                    _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Select your download type")
+                    return
+
+                if self.rdo_HDF5.isChecked():
+                    if download_type.upper() == "EARLY":
+                        HDForTiff = "imerg/early"
+                    elif download_type.upper() == "LATE":
+                        HDForTiff = "imerg/late"
+                elif self.rdio_Tiff.isChecked():
+                    if download_type.upper() == "EARLY":
+                        HDForTiff = "imerg/gis/early"
+                    elif download_type.upper() == "LATE":
+                        HDForTiff = "imerg/gis"
+                startdate = self.start_date.text()
+                enddate = self.end_date.text()
+                path = self.txt_bat_path.text()
+                url = "https://jsimpsonhttps.pps.eosdis.nasa.gov/text"
+                #네트워크 확인해서 접속 끊어 지면 다운로드 중지
+                network_flag = _util.connected_to_internet(url)
+                if not(network_flag):
+                    _util.MessageboxShowError("Network error"," Check network connection.")
+                    return
+
+                datadownload = GPM_download.GPM_download_Class(userPw,userId,str(startdate),str(enddate),HDForTiff,path,"UTC",self.wget_progress)
+            elif type == "CMORPH":
+                url="https://ftp.cpc.ncep.noaa.gov/precip/CMORPH_V1.0/CRT/0.25deg-3HLY"
+                datadownload = wget.cmorph_data_download(self.start_date_2.text(),self.end_date_2.text(),self.txt_bat_path_2.text(),"")
+                if (datadownload== False):
+                    _util.MessageboxShowError("KICT Satellite Precipitation Converter", "Check original data.")
+                    return
+                else:
+                    pass
+
+            elif type == "GSMAP":
+                userId = self.txt_userID_1.text()
+                userPw = self.txt_userPW_1.text() #사용자 ID/PW
+                url="ftp://{0}:{1}@hokusai.eorc.jaxa.jp/standard/v6/hourly/".format(userId,userPw)
+                #네트워크 확인해서 접속 끊어 지면 다운로드 중지
+                network_flag = _util.connected_to_internet(url)
+                if not(network_flag):
+                    _util.MessageboxShowError("Network error"," Check network connection.")
+                    return
+                datadownload = wget.GSMap_data_download(userId,userPw,self.start_date_1.text(),self.end_date_1.text(),self.txt_bat_path_1.text(),"")  
             
-            self.wget_progress.setMaximum(len(datadownload))   
-            count=0
-            for down in datadownload:
-                count = count +1
-                self.wget_progress.setValue(count)
-#                 
-#                 QgsMessageLog.logMessage(str(down),"WGET")
-                sub.call(down, shell=True)  # 자동 수행 2019-03-12
-#                 sub.call(down)
-                sleep(0.5)
-#             QgsMessageLog.logMessage("Check download folder.","GPM")
-            _util.MessageboxShowInfo("GPM", "Check download folder.")
+            if type == "CMORPH" or type == "GSMAP" : 
+                count = 0
+                self.wget_progress.setMaximum(len(datadownload))
+                QApplication.processEvents()
+                for down in datadownload:
+                    count = count + 1
+                    self.wget_progress.setValue(count)
+                    sub.call(down, shell=True)  # 자동 수행 2019-03-12
+                    sleep(0.5)
+                    QApplication.processEvents()
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Download is complete. Please check the download folder")
+                self.txt_userID.clear()
+                self.txt_userPW.clear()
             
-            self.txt_userID.clear()
-            self.txt_userPW.clear()
-            
+                #2020-09-07 박: 배치파일 생성후 자동 다운로드 실행 기능
+                #if type=="CMORPH":
+                #    if self.batch_path!="":
+                #        os.system(self.batch_path)
+
         except Exception as exc:
-            _util.MessageboxShowInfo("GPM",str(exc))
-            QgsMessageLog.logMessage(str(exc),"GPM")
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter",str(exc))
+            QgsMessageLog.logMessage(str(exc),"KICT Satellite Precipitation Converter")
     
     
     #============= Convert To TIFF =========================
@@ -627,10 +1058,10 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 
         stylesheet = "QHeaderView::section{Background-color:rgb(174, 182, 255, 100)}"
         self.tb_hdf5.setStyleSheet(stylesheet)
-        count=0
+        count = 0
         # 레이어 데이터 경로 받아서 배열에 미리 넣어 두기
-        self.layer_Data=[]
-        self.layer_Name=[]
+        self.layer_Data = []
+        self.layer_Name = []
     # check 된 것에 따라 선택하는 파일을 구분함.
     def check_data_select(self):
         if self.rdo_GPM_convert.isChecked():
@@ -665,114 +1096,129 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     
     def select_convert_files(self,format):
         try:
+            
+#             filter = format
+#             file_name = QFileDialog()
+#             file_name.setFileMode(QFileDialog.ExistingFiles)
+#             _util.MessageLogShowInfo("hdf5",str(self.tb_hdf5.item(0,0)))
+            
+            if (str(self.tb_hdf5.item(0,0)) == "None"):
+                files = QFileDialog.getOpenFileNames(self, "Open files", "C:\\", format)[0]
+            else:
+                files = QFileDialog.getOpenFileNames(self, "Open files", "", format)[0]
+#             FileList = files[0]
+            
             self.tb_hdf5.clear() #초기화
             self.tb_hdf5.setRowCount(0)
             self.hdf5_progressBar.setValue(0)
-            
-            filter = format
-            file_name = QFileDialog()
-            file_name.setFileMode(QFileDialog.ExistingFiles)
-            files = file_name.getOpenFileNames(self, "Open files", "C:\\", filter)
-            FileList = files[0]
 
             self.tb_hdf5.setColumnCount(1)
             self.tb_hdf5.setHorizontalHeaderLabels(["Layer List"])
             stylesheet = "QHeaderView::section{Background-color:rgb(174, 182, 255, 100)}"
             self.tb_hdf5.setStyleSheet(stylesheet)
-            count=0
+            count = 0
             
             self.convert_list = []
-            for file in FileList:
+            for file in files:
                 self.tb_hdf5.insertRow(count)
                 self.tb_hdf5.setItem(count, 0, QTableWidgetItem(str(file)))
                 self.convert_list.append(str(file))
-                
-#                 count+=1
                 count = count + 1
             
         except Exception as e:
-            _util.MessageboxShowError("GPM", str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter", str(e))
     
     ## GPM Data의 경우====================
     def Convert_hdf5(self):
         try:
             
             # 사용자가 원하는 파일을 tiff 파일로 분리 함수
-            Tiff_List=self.BandtoTiff()
-            # 결과 좌표계 설정 
+            Tiff_List = self.BandtoTiff()
+            # 결과 좌표계 설정
             self.Convert_crs_tif(self.MaketoTif)
             
         except Exception as e:
-            _util.MessageboxShowError("GPM", str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter", str(e))
             
     # tiff 분리 하기
     def BandtoTiff(self):
         try:
-            self.MaketoTif =[]
+            self.MaketoTif = []
 #             for idx in self.hdf5_list:
             for idx in self.convert_list:    
                 datasouce = idx
                 name = _util.GetFilename(datasouce)
-                folder=self.txt_Output_Convert.text()+"/GPM/"
+                folder = self.txt_Output_Convert.text() + "/GPM/"
                 if os.path.exists(folder) == False:
                     os.mkdir(folder)
                 #변환된 원본 TIFF 저장 폴더 생성
-                folder = self.txt_Output_Convert.text()+"/GPM/step1/"
-                if os.path.exists(folder) == False:
-                    os.mkdir(folder)
-                self.MaketoTif.append(folder+ name + "_precipitationCal.tif")
-                output = folder+name+"_"+self.txt_hdf_inName.text()+".tif"
+#                 folder = self.txt_Output_Convert.text()+"/GPM/step1/"
+#                 if os.path.exists(folder) == False:
+#                     os.mkdir(folder)
+
+                self.MaketoTif.append(folder + name + "_precipitationCal.tif")
+                output = folder + name + "_" + self.txt_hdf_inName.text() + ".tif"
                 try:
                     username = getpass.getuser()
-                    gdal_translate=r"C:\Users\{0}\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\Kict_Satellite_Precipitation_Converter\Lib\gdal\gdal_translate.exe".format(username)
-                    gdal_translate=gdal_translate.replace("\\","/")
-                    arg ='HDF5:"{0}"://{1}/{2} -of GTiff "{3}"'.format(str(datasouce).replace("\\","/"),self.txt_hdf5_inPath.text(),self.txt_hdf_inName.text(),output.replace("\\","/"))
-                    sub.call(gdal_translate+" "+arg,shell=True)
+                    gdal_translate = r'C:\Users\"{0}"\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\Kict_Satellite_Precipitation_Converter\Lib\gdal\gdal_translate.exe'.format(username)
+#                     _util.MessageLogShowInfo("GPM",str(gdal_translate))
+                    gdal_translate = gdal_translate.replace("\\","/")
+                    arg = 'HDF5:"{0}"://{1}/{2} -of GTiff "{3}"'.format(str(datasouce).replace("\\","/"),self.txt_hdf5_inPath.text(),self.txt_hdf_inName.text(),output.replace("\\","/"))
+                    sub.call(gdal_translate + " " + arg,shell=True)
                      
- 
+                    
                     #결과 파일이 안 만들어지면 중간에 끝내 버리도록 해버림.(어차피 없으면 진행 안됨)
                     if os.path.exists(output) == True:
                         pass
+                        
                     elif os.path.exists(output) != True:
-                        _util.MessageboxShowError("GPM","Failed Create output file.")
+                        _util.MessageboxShowError("KICT Satellite Precipitation Converter","Failed Create output file.")
                         self.hdf5_progressBar.setValue(0)
                         return
-                     
+                    
+                    
+                    
                 except Exception as e:
                     QgsMessageLog.logMessage(str(e),"GPM TIFF")
                      
             self.hdf5_progressBar.setValue(0)    
             self.hdf5_progressBar.setMaximum(len(self.MaketoTif))
+            
              
         except Exception as e:
             _util.MessageboxShowError("Error message", str(e))
             
     
-    #made in JO - 좌표계 변환... - 20180913
+    #made in JO - 좌표계 변환...  - 20180913
     def Convert_crs_tif(self, list):
 #     def Convert_crs_tif(self):
         try:
             
             try:
-                self.convert_tiff=[] ; hdf_pro_count=0
+                self.convert_tiff = []
+                hdf_pro_count = 0
 #                 self.convert_list = []
 #                 for file in list:
-#                 self.hdf5_progressBar.setMaximum(len(self.convert_list))
+                self.hdf5_progressBar.setMaximum(len(list))
+                QApplication.processEvents()
                 for file in list:
                     #가로세로 변환된 원본 TIFF 저장 폴더 생성
-                    folder = self.txt_Output_Convert.text()+"/GPM/step2/"
-                    if os.path.exists(folder) == False:
-                        os.mkdir(folder)
+#                     folder = self.txt_Output_Convert.text()+"/GPM/step2/"
+                    folder = self.txt_Output_Convert.text() + "/GPM/"
+#                     if os.path.exists(folder) == False:
+#                         os.mkdir(folder)
                         
                     filename = _util.GetFilename(file)
-#                     output = folder+name+"_"+self.txt_hdf_inName.text()+".tif"
-                    pre_output=folder + filename+"_Convert_pre.tif"
+#                     output =
+#                     folder+name+"_"+self.txt_hdf_inName.text()+".tif"
+                    pre_output = folder + filename + "_Convert_pre.tif"
 
-                    Output =  folder + filename+"_Convert.tif"
+                    Output = folder + filename + "_Convert.tif"
 #                     Output = file.replace(filename, filename + "_Convert")
                     
     #                2018-09-16 JO : 원exe2 사용
-#                     converter_exe =  os.path.dirname(os.path.abspath(__file__))+"/Lib/kict_sra_gpm_converter\KICT_SRA_GPM_Converter.exe" 
+#                     converter_exe =
+#                     os.path.dirname(os.path.abspath(__file__))+"/Lib/kict_sra_gpm_converter\KICT_SRA_GPM_Converter.exe"
 #                     sub.call([converter_exe, file, Output],shell=True)
                     _tr_Tiff.img_to_array(file,pre_output)
                     QgsMessageLog.logMessage(str(_tr_Tiff),"GPM TIFF")
@@ -782,30 +1228,35 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 #                     QgsMessageLog.logMessage(str(arg),"GPM TIFF 2")
                     sub.call(arg,shell=True)
                     os.remove(pre_output)
-                    #2018-10-17 : JO - output 파일이 실존하면 리스트에 추가되도록 수정함. 
+                    os.remove(file)
+                    #2018-10-17 : JO - output 파일이 실존하면 리스트에 추가되도록 수정함.
                     try:
 #                         if (os.path.exists(Output)) == True:
                         self.convert_tiff.append(Output)
-                        hdf_pro_count=hdf_pro_count+1
+                        hdf_pro_count = hdf_pro_count + 1
                         self.hdf5_progressBar.setValue(hdf_pro_count)
+                        QApplication.processEvents()
                         sleep(1)
 
 #                         elif (os.path.exists(Output)) != True:
-#                             _util.MessageboxShowError("GPM", "Check Folder step1")
+#                             _util.MessageboxShowError("GPM", "Check Folder
+#                             step1")
 #                         #맵윈도우가 없으면 실행이 안되니까...
-#                             _util.MessageboxShowInfo("GPM", "Please check Manual(Part install Mapwindow5).")
+#                             _util.MessageboxShowInfo("GPM", "Please check
+#                             Manual(Part install Mapwindow5).")
                     except Exception as e:
-                        _util.MessageboxShowInfo("GPM",str(e))
+                        _util.MessageboxShowInfo("KICT Satellite Precipitation Converter",str(e))
                         
             except Exception as e:
-                _util.MessageboxShowInfo("GPM",str(e))
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter",str(e))
             
-#             self.calc((len(self.hdf_convert_tiff)*1000), (len(self.hdf_convert_tiff)*2000))
+#             self.calc((len(self.hdf_convert_tiff)*1000),
+#             (len(self.hdf_convert_tiff)*2000))
 #             self.calc(len(self.hdf_convert_tiff)*5)
-            #clip 준비... 2018-10-15 신설
+            #clip 준비...  2018-10-15 신설
             self.Set_Clip_table_layerlist()
         except Exception as e:
-            _util.MessageboxShowError("GPM" , str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter" , str(e))
     
     
     ## CMORPH Data의 경우 =================
@@ -818,8 +1269,10 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             return
     def CmorphToASC(self):
         try:
-            self.MaketoASC=[]
+            self.MaketoASC = []
 #             for idx in self.cmorph_list:
+            count = 0
+            self.hdf5_progressBar.setMaximum(len(self.convert_list))
             for idx in self.convert_list:    
                 datasouce = idx
                 name = _util.GetFilename(datasouce)
@@ -829,14 +1282,17 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                 QgsMessageLog.logMessage(str(os.path.splitext(datasouce)[0]),"CMORPH ASC")
                 
                 try:
-                    converter_exe =  os.path.dirname(os.path.abspath(__file__))+"/Lib/CMORPHToASC/HDC_Comp.exe" 
+                    converter_exe = os.path.dirname(os.path.abspath(__file__)) + "/Lib/CMORPHToASC/HDC_Comp.exe" 
                     sub.call([converter_exe, datasouce],shell=True)
                     
                     
                 except Exception as e:
                     QgsMessageLog.logMessage(str(e),"CMORPH")
                     
-            self.hdf5_progressBar.setValue(0)    
+                self.hdf5_progressBar.setValue(count)
+                QApplication.processEvents()
+                count = count + 1
+            #self.hdf5_progressBar.setMaximum(len(self.MaketoASC))
             self.hdf5_progressBar.setMaximum(len(self.MaketoASC))
             
         except Exception as e:
@@ -845,8 +1301,9 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     ## ASC CMORPH를 TIFF로 변환
     def CmorphToTiff(self):
         try:
-            self.convert_tiff=[];hdf_pro_count=0
-            folder = self.txt_Output_Convert.text()+"/CMORPH/"
+            self.convert_tiff = []
+            hdf_pro_count = 0
+            folder = self.txt_Output_Convert.text() + "/CMORPH/"
             if os.path.exists(folder) == False:
                 os.mkdir(folder)
                 
@@ -857,9 +1314,9 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                 name = os.path.split(idx)[1]
 #                 QgsMessageLog.logMessage(idx.lower(),"CMORPH")
                 for file_i in range(0,8):
-                    input = str(idx.lower())+"_{0}.asc".format(str(file_i))
+                    input = str(idx.lower()) + "_{0}.asc".format(str(file_i))
 #                     QgsMessageLog.logMessage(input,"CMORPH")
-                    output = folder+str(name)+"_{0}.tif".format(str(file_i))
+                    output = folder + str(name) + "_{0}.tif".format(str(file_i))
 #                     QgsMessageLog.logMessage(output,"CMORPH")
                     arg = "gdal_translate -of GTiff {0} {1}".format(input,output)
                     sub.call(arg,shell=True)
@@ -873,10 +1330,10 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                         _util.MessageboxShowError(str(exc))
                         return
                         
-                    hdf_pro_count=hdf_pro_count+1
+                    hdf_pro_count = hdf_pro_count + 1
                     self.hdf5_progressBar.setValue(hdf_pro_count)
                 
-            #clip 준비... 2018-10-15 신설
+            #clip 준비...  2018-10-15 신설
             self.Set_Clip_table_layerlist()
                                 
         except Exception as exc:
@@ -888,56 +1345,67 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     def GSMap_Tiff(self):
         try:
             self.hdf5_progressBar.setMaximum(len(self.convert_list))
-            self.convert_tiff=[];hdf_pro_count=0
-            folder = self.txt_Output_Convert.text()+"/GSMap/"
+            self.convert_tiff = []
+            hdf_pro_count = 0
+            folder = self.txt_Output_Convert.text() + "/GSMap/"
             if os.path.exists(folder) == False:
                 os.mkdir(folder)
-                
+            QApplication.processEvents()  
             for file in self.convert_list:
                 GSMap_convert_tiff.convert2tiff_GSMap(file,folder)
+                output = folder + str(os.path.basename(file.split(".dat")[0])) + ".tif"
+#                 _util.MessageLogShowInfo("GSMap",output)
+                self.convert_tiff.append(output)
                 
-                hdf_pro_count=hdf_pro_count+1
+                hdf_pro_count = hdf_pro_count + 1
                 self.hdf5_progressBar.setValue(hdf_pro_count)
-            
+                QApplication.processEvents()
+            self.Set_Clip_table_layerlist()
                 
         except Exception as exc:
-           _util.MessageboxShowError(str(exc))
+           _util.MessageboxShowInfo(str(exc))
            return        
     
-    #============= CLIP  =========================
+    #============= CLIP =========================
     #clip 파일 지정
     def select_Cilp_files(self):
         try: 
+            
+            if (str(self.tb_clip_Tiff.item(0,0)) == "None"):
+                files = QFileDialog.getOpenFileNames(self, "Open files", "C:\\", "tif (*.tif)")[0]
+            else:
+                files = QFileDialog.getOpenFileNames(self, "Open files", "", "tif (*.tif)")[0]
+            
             self.tb_clip_Tiff.clear() #초기화
             self.tb_clip_Tiff.setRowCount(0)
             self.clip_progressBar.setValue(0)
             
-            filter = "tif (*.tif)"
-            file_name = QFileDialog()
-            file_name.setFileMode(QFileDialog.ExistingFiles)
-            files = file_name.getOpenFileNames(self, "Open files", "C:\\", filter)
-            FileList = files[0]
+#             filter = "tif (*.tif)"
+#             file_name = QFileDialog()
+#             file_name.setFileMode(QFileDialog.ExistingFiles)
+            
+#             FileList = files[0]
 
             self.tb_clip_Tiff.setColumnCount(1)
             self.tb_clip_Tiff.setHorizontalHeaderLabels(["Layer List"])
             stylesheet = "QHeaderView::section{Background-color:rgb(174, 182, 255, 100)}"
             self.tb_clip_Tiff.setStyleSheet(stylesheet)
-            count=0
+            count = 0
             
             self.convert_tiff = []
-            for file in FileList:
+            for file in files:
                 self.tb_clip_Tiff.insertRow(count)
                 self.tb_clip_Tiff.setItem(count, 0, QTableWidgetItem(str(file)))
                 self.convert_tiff.append(str(file))
                 
 #                 count+=1
                 count = count + 1
-            #프로그레스바 신설.. 내가 불편해서 만들었음
+            #프로그레스바 신설..  내가 불편해서 만들었음
             self.acc_progressBar.setValue(0)
             
                 
         except Exception as e:
-            _util.MessageboxShowInfo("GPM",str(e))
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter",str(e))
     
     
     
@@ -947,23 +1415,23 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         try:
             #clip zone comboBox 지정 여부 확인
             if self.rdo_Combo_Clip.isChecked():
-                if self.cmb_clip_zone.currentIndex() ==0 :
-                    _util.MessageboxShowInfo("GPM" ,"Not selected Country")
+                if self.cmb_clip_zone.currentIndex() == 0 :
+                    _util.MessageboxShowInfo("KICT Satellite Precipitation Converter" ,"Not selected Country")
                     self.cmb_clip_zone.setFocus()
                     return
                 
             if self.rdo_Shape_Clip.isChecked():
-                Path_txt=self.txt_Shape_path.text()
+                Path_txt = self.txt_Shape_path.text()
 #                 _util.MessageLogShowInfo("clip_shp",str(Path_txt))
-                if Path_txt.strip()=="":
-                    _util.MessageboxShowInfo("GPM","The file path is not set.")
+                if Path_txt.strip() == "":
+                    _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","The file path is not set.")
                     self.txt_Shape_path.setFocus()
                     return
             
             #결과 파일 출력 경로 지정 여부 확인
             folder = self.txt_output_clip.text()
-            if folder.strip()=="":
-                _util.MessageboxShowInfo("GPM", "The folder path is not set.")
+            if folder.strip() == "":
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "The folder path is not set.")
                 self.txt_output_clip.setFocus()
                 return
             
@@ -980,44 +1448,72 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             
             
         except Exception as e:
-            _util.MessageboxShowInfo("GPM", str(e))
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", str(e))
             
             
     # ===== 여기가 combo area 선택 함수 생성
     def cmb_clip_zone_apply(self):
         # 분리된 Tif 유역으로 자르기
-            # gdalwarp -te -122.4267 37.7492 -122.4029 37.769 sf_4269.tif sf_4269-clippedByCoords.tif
-            area =self.cmb_clip_zone.currentText()
+        # gdalwarp -te -122.4267 37.7492 -122.4029 37.769 sf_4269.tif sf_4269-clippedByCoords.tif
+        area = self.cmb_clip_zone.currentText()
 #             Clip_area=_Dict.Clip_dic[area]
-            Clip_area = _Dict_clip.Clip_dic[area]
+        Clip_area = _Dict_clip.Clip_dic[area]
 #             for tif in (self.hdf_convert_tiff):
-            if len(self.tb_clip_Tiff.selectedIndexes()) > 0: 
-                #선택된 레이어에만 적용되도록...
-                clip_pro_count=0;self.clip_progressBar.setMaximum(len(self.tb_clip_Tiff.selectedIndexes()))
-                if os.path.exists(self.txt_output_clip.text()+"/"+str(area)+"/") == False:
-                    folder = os.mkdir(self.txt_output_clip.text()+"/"+str(area)+"/")
-                
-                for idx in self.tb_clip_Tiff.selectedIndexes():
-                    #HDF5 수행 후 바로라면.
-                    if (self.convert_tiff != []):
-                        tif = self.convert_tiff[idx.row()]
-                        filename = _util.GetFilename(tif)
+        if len(self.tb_clip_Tiff.selectedIndexes()) > 0: 
+            #선택된 레이어에만 적용되도록...
+            clip_pro_count = 0
+            self.clip_progressBar.setMaximum(len(self.tb_clip_Tiff.selectedIndexes()) - 1)
+            if os.path.exists(self.txt_output_clip.text() + "/" + str(area) + "/") == False:
+                folder = os.mkdir(self.txt_output_clip.text() + "/" + str(area) + "/")
+
+            QApplication.processEvents()
+            for idx in self.tb_clip_Tiff.selectedIndexes():
+                #HDF5 수행 후 바로라면.
+                if (self.convert_tiff != []):
+                    tif = self.convert_tiff[idx.row()]
+                    filename = _util.GetFilename(tif)
+                        
+                    if ("IMERG" in filename):
+                        if os.path.exists(self.txt_output_clip.text() + "/" + str(area) + "/GPM/") == False:
+                            gpm_folder = os.mkdir(self.txt_output_clip.text() + "/" + str(area) + "/GPM/")
+                        Output = self.txt_output_clip.text() + "/" + str(area) + "/GPM/" + filename + "_Clip.tif"
+                        
+                    elif ("CMORPH" in filename):
+                        if os.path.exists(self.txt_output_clip.text() + "/" + str(area) + "/CMORPH/") == False:
+                            cmorph_folder = os.mkdir(self.txt_output_clip.text() + "/" + str(area) + "/CMORPH/")
+                        Output = self.txt_output_clip.text() + "/" + str(area) + "/CMORPH/" + filename + "_Clip.tif"
+                                
+                    elif ("gsmap" in filename):
+                        if os.path.exists(self.txt_output_clip.text() + "/" + str(area) + "/GSMap/") == False:
+                            gsmap_folder = os.mkdir(self.txt_output_clip.text() + "/" + str(area) + "/GSMap/")
+                        Output = self.txt_output_clip.text() + "/" + str(area) + "/GSMap/" + filename + "_Clip.tif"        
+
+                    else:
+                        # 2021.11.09 조 추가
+                        # GPM, CMORPH, GSMap 이외의 것 처리할 경우
+                        Output = self.txt_output_clip.text() + "/" + str(area) +"/"+ filename + "_Clip.tif"        
+                                
+#                         _util.MessageLogShowInfo("CLIP",str(Output))
+                                
 #                         Input = tif.replace(filename,filename+"_Convert")
                     
-                        Output = self.txt_output_clip.text()+"/"+(area)+"/"+ filename + "_Clip.tif"
+                                
                         
-                        try:
-                            #===== 2019-07-29 수정
-                            self.read_Layer_Get_Noadta(tif)
-#                             QgsMessageLog.logMessage("aaa ::: " +  (self.Nodata) + "    bbb ::: "+ str(self.Projection),"GPM CLIP")
+                    try:
+                        #===== 2019-07-29 수정
+                        self.read_Layer_Get_Noadta(tif)
+#                             QgsMessageLog.logMessage("aaa ::: " +
+#                             (self.Nodata) + " bbb ::: "+
+#                             str(self.Projection),"GPM CLIP")
                             
-                            if (self.Nodata != "None"):
-                                arg = 'gdal_translate.exe -a_srs epsg:4326 -projwin {0} -a_nodata {1} -of GTiff "{2}" "{3}" '.format(Clip_area,(self.Nodata),tif,Output)   
+                        if (self.Nodata != "None"):
+                            arg = 'gdal_translate.exe -a_srs epsg:4326 -projwin {0} -a_nodata {1} -of GTiff "{2}" "{3}" '.format(Clip_area,(self.Nodata),tif,Output)   
                                 
-#                             arg = "gdal_translate.exe -a_srs epsg:4326 -projwin  " +Clip_area + " -of GTiff "  +tif+ " " + Output
-                            if (self.Nodata == "None"):
-                                arg = 'gdal_translate.exe -a_srs epsg:4326 -projwin {0} -a_nodata -9999  -of GTiff "{1}" "{2}"'.format(Clip_area,tif,Output)   
-                                
+#                             arg = "gdal_translate.exe -a_srs epsg:4326
+#                             -projwin " +Clip_area + " -of GTiff " +tif+ " " +
+#                             Output
+                        if (self.Nodata == "None"):
+                            arg = 'gdal_translate.exe -a_srs epsg:4326 -projwin {0} -a_nodata -9999  -of GTiff "{1}" "{2}"'.format(Clip_area,tif,Output)     
 #                             _util.MessageLogShowInfo("clip",str(arg))
 #                             os.system(arg)
 #                             arg =[
@@ -1025,79 +1521,119 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 #                                 "gdal_translate.exe","-a_srs","EPSG:4326",
 #                                 "-projwin",Clip_area,"-of","GTiff",tif,Output
 #                                 ]
-                            sub.call(arg,shell=True) #2019-02-25, 전면수정
+                        sub.call(arg,shell=True) #2019-02-25, 전면수정
+                        self.clip_progressBar.setValue(clip_pro_count)
                             
-                            clip_pro_count =clip_pro_count+1
-                            sleep(1)
-                            self.clip_progressBar.setValue(clip_pro_count)
-                            
-                        except Exception as e:
-                            QgsMessageLog.logMessage(str(e),"GPM CLIP")
-            else:
-                _util.MessageboxShowInfo("GPM","Not Selected Files.")
-                return
+                        clip_pro_count = clip_pro_count + 1
+                        sleep(1)
+                        QApplication.processEvents()
+
+                    except Exception as e:
+                        QgsMessageLog.logMessage(str(e),"GPM CLIP")
+        else:
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Not Selected Files.")
+            return
     
     # ===== 여기는 shape area 선택 함수로 생성...
     def Shape_Clip_apply(self):
 #         _util.MessageboxShowInfo("GPM CLIP",str(self.txt_Shape_path.text()))
         if len(self.tb_clip_Tiff.selectedIndexes()) > 0: 
-            clip_pro_count=0;self.clip_progressBar.setMaximum(len(self.tb_clip_Tiff.selectedIndexes()))
-            
-#             folder = (self.txt_output_clip.text()+"/"+str(os.path.basename(self.txt_Shape_path.text()))+"/").replace("\\","/")
-            folder = (self.txt_output_clip.text()+"/shp/").replace("\\","/")
+            clip_pro_count = 0
+            self.clip_progressBar.setMaximum(len(self.tb_clip_Tiff.selectedIndexes())-1)
+
+#             folder =
+#             (self.txt_output_clip.text()+"/"+str(os.path.basename(self.txt_Shape_path.text()))+"/").replace("\\","/")
+            folder = (self.txt_output_clip.text() + "/shp/").replace("\\","/")
             if os.path.exists(folder) == False:
                     os.mkdir(folder)
             
-            #여기서 shp의 geometry type은 반드시 폴리곤이여야 합니다 (와카리마스... by.기린)
+            #여기서 shp의 geometry type은 반드시 폴리곤이여야 합니다 (와카리마스...  by.기린)
             vector_polygon = QgsVectorLayer(self.txt_Shape_path.text(),"shp","ogr")
-#             vector_polygon.wkbType() == QGis.WKBPolygon #이거는 단일다각형, 다중다각형에는 좋지 않음.
+#             vector_polygon.wkbType() == QGis.WKBPolygon #이거는 단일다각형, 다중다각형에는
+#             좋지 않음.
 #             if (vector_polygon.wkbType() != QGis.WKBPolygon):
             vector_polygon.geometryType() == QgsWkbTypes.PolygonGeometry
 #             _util.MessageLogShowInfo(vector_polygon.po)
             if (vector_polygon.geometryType() != QgsWkbTypes.PolygonGeometry):
-                _util.MessageboxShowError("GPM", "Check out the geometry type(polygon) in the shapefile.")
+                _util.MessageboxShowError("KICT Satellite Precipitation Converter", "Check out the geometry type(polygon) in the shapefile.")
                 return
              #polygon이 아니면 메시지로 사용자에게 알립니다.٩(ˊᗜˋ*)و
 #             else:
-#                 _util.MessageboxShowError("GPM", "Check out the geometry type in the shapefile.")
+#                 _util.MessageboxShowError("GPM", "Check out the geometry type
+#                 in the shapefile.")
 #                 return
             
-            
+            QApplication.processEvents()
             for idx in self.tb_clip_Tiff.selectedIndexes():
                     #HDF5 수행 후 바로라면.
                     if (self.convert_tiff != []):
                         tif = self.convert_tiff[idx.row()]
                         filename = _util.GetFilename(tif)
                         
-                        Input = tif.replace(filename,filename+"_Convert")
-                        Input_layer=gdal.Open(tif)
+                        
+#                         self.read_Layer_Get_Noadta(Input_layer)
+                        Input = tif.replace(filename,filename + "_Convert")
+                        Input_layer = gdal.Open(tif)
 #                         _util.MessageLogShowInfo("clip",str(Input_layer))
-#                         QgsMessageLog.logMessage(str(Input_layer),"GPM SHP CLIP")
+#                         QgsMessageLog.logMessage(str(Input_layer),"GPM SHP
+#                         CLIP")
                         clipWidth = (Input_layer.GetGeoTransform()[1])
                         clipHeight = -(Input_layer.GetGeoTransform()[5])
-                        Nodata =Input_layer.GetRasterBand(1) .GetNoDataValue()
                         
-                        Output = folder+ filename + "_Clip.tif"
+                        Nodata = Input_layer.GetRasterBand(1) .GetNoDataValue()
+                        prj = Input_layer.GetProjection()
+                        srs = osr.SpatialReference(wkt=prj)
+                        Projection = str(srs.GetAttrValue('authority',0) + ":" + srs.GetAttrValue('authority',1))    
+                        
+                        if ("IMERG" in filename):
+                            if os.path.exists(self.txt_output_clip.text() + "/shp/GPM/") == False:
+                                gpm_folder = os.mkdir(self.txt_output_clip.text() + "/shp/GPM/")
+                            Output = self.txt_output_clip.text() + "/shp/GPM/" + filename + "_Clip.tif"
+                        
+                        elif ("CMORPH" in filename):
+                            if os.path.exists(self.txt_output_clip.text() + "/shp/CMORPH/") == False:
+                                cmorph_folder = os.mkdir(self.txt_output_clip.text() + "/shp/CMORPH/")
+                            Output = self.txt_output_clip.text() + "/shp/CMORPH/" + filename + "_Clip.tif"
+                                
+                        elif ("gsmap" in filename):
+                            if os.path.exists(self.txt_output_clip.text() + "/shp/GSMap/") == False:
+                                gsmap_folder = os.mkdir(self.txt_output_clip.text() + "/shp/GSMap/")
+                            Output = self.txt_output_clip.text() + "/shp/GSMap/" + filename + "_Clip.tif" 
+
+                        else:
+                            #2021.11.09 조 추가
+                            # 위의 세가지 경우 이외 처리할 경우
+                            Output=self.txt_output_clip.text()+"/shp/"+filename+"_Clip.tif"
+
+
                         
                         try:
                             tif = tif.replace("\\","/")
-                            arg = 'gdalwarp.exe -dstnodata {0} -s_srs EPSG:4326 -t_srs EPSG:4326 -q -cutline "{1}" -crop_to_cutline -tr {2} {3} -of GTiff "{4}" "{5}"'.format(str(Nodata),str(self.txt_Shape_path.text()),str(clipWidth),str(clipHeight),tif,Output)
-#                             _util.MessageLogShowInfo("clip",str(arg))
+#                             arg = 'gdalwarp.exe -dstnodata {0} -s_srs
+#                             EPSG:4326 -t_srs EPSG:4326 -q -cutline "{1}"
+#                             -crop_to_cutline -tr {2} {3} -of GTiff "{4}"
+#                             "{5}"'.format(
+#                                 str(Nodata),str(self.txt_Shape_path.text()),str(clipWidth),str(clipHeight),tif,Output)
+                            
+                            arg = 'gdalwarp.exe -dstnodata {0} -s_srs {1} -t_srs {2} -q -cutline "{3}" -crop_to_cutline -tr {4} {5} -of GTiff "{6}" "{7}"'.format(str(Nodata),Projection,Projection,str(self.txt_Shape_path.text()),str(clipWidth),str(clipHeight),tif,Output)
+                            
+                            
                             sub.call(arg,shell=True) #2019-02-25 전면 교체
-                            clip_pro_count =clip_pro_count+1
+
                             sleep(1)
                             self.clip_progressBar.setValue(clip_pro_count)
-                            
+                            QApplication.processEvents()
+                            clip_pro_count = clip_pro_count + 1
                         except Exception as e:
                             QgsMessageLog.logMessage(str(e),"GPM CLIP")
         
         else:
             #파일 선택하라니까...
-            _util.MessageboxShowInfo("GPM","Not Selected Files.")
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Not Selected Files.")
             return
     
     # ==== 사용자 직접area 입력
-    #숫자인지 여부도 판단.. 숫자만 받아요. 감사
+    #숫자인지 여부도 판단..  숫자만 받아요.  감사
     def isNumber(self,s):
         try:
             float(s)
@@ -1106,104 +1642,135 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             return False
         
     def user_clip_zone(self):
-    #만약 1.x,y 2.x,y 텍스트 박스가 빈칸이면 return
-        self.clip_x1 = str(self.clip_1_x.text()); self.clip_y1 = str(self.clip_1_y.text())
-        self.clip_x2 = str(self.clip_2_x.text()); self.clip_y2 = str(self.clip_2_y.text())
+        #만약 1.x,y 2.x,y 텍스트 박스가 빈칸이면 return
+        self.clip_x1 = str(self.clip_1_x.text())
+        self.clip_y1 = str(self.clip_1_y.text())
+        self.clip_x2 = str(self.clip_2_x.text())
+        self.clip_y2 = str(self.clip_2_y.text())
          #빈칸이면 안돼
-        if self.clip_x1.strip()=="":
-            _util.MessageboxShowInfo("GPM", "The clip zone is not set.")
+        if self.clip_x1.strip() == "":
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "The clip zone is not set.")
             self.clip_1_x.setFocus()
             return
-        if self.clip_y1.strip()=="":
-            _util.MessageboxShowInfo("GPM", "The clip zone is not set.")
+        if self.clip_y1.strip() == "":
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "The clip zone is not set.")
             self.clip_1_y.setFocus()
             return
-        if self.clip_x2.strip()=="":
-            _util.MessageboxShowInfo("GPM", "The clip zone is not set.")
+        if self.clip_x2.strip() == "":
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "The clip zone is not set.")
             self.clip_2_x.setFocus()
             return
-        if self.clip_y2.strip()=="":
-            _util.MessageboxShowInfo("GPM", "The clip zone is not set.")
+        if self.clip_y2.strip() == "":
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "The clip zone is not set.")
             self.clip_2_y.setFocus()
             return
         
-        #숫자인지 여부도 판단.. 숫자만 받아요. 감사
+        #숫자인지 여부도 판단..  숫자만 받아요.  감사
         if self.isNumber(self.clip_x1) == False:
-            _util.MessageboxShowInfo("GPM", "Input number")
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Input number")
             self.clip_1_x.setFocus()
             return
         if self.isNumber(self.clip_x2) == False:
-            _util.MessageboxShowInfo("GPM", "Input number")
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Input number")
             self.clip_2_x.setFocus()
             return
         if self.isNumber(self.clip_y1) == False:
-            _util.MessageboxShowInfo("GPM", "Input number")
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Input number")
             self.clip_1_y.setFocus()
             return
         if self.isNumber(self.clip_y2) == False:
-            _util.MessageboxShowInfo("GPM", "Input number")
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Input number")
             self.clip_2_y.setFocus()
             return    
             
     def user_Clip_apply(self):
         self.user_clip_zone()
         
-        Clip_area = "{0} {1} {2} {3}".format(str(self.clip_x1),str(self.clip_y2),str(self.clip_x2),str(self.clip_y1))
+        # 2021.11.10 조: 순서 오류 발견하여 수정
+        Clip_area = "{0} {1} {2} {3}".format(str(self.clip_x1),str(self.clip_y1),str(self.clip_x2),str(self.clip_y2))
+        #Clip_area = '122.7373493269162594 44.4776569326958224 132.8373493269162680 32.5776569326958239'
+
         
         if len(self.tb_clip_Tiff.selectedIndexes()) > 0: 
-            clip_pro_count=0;self.clip_progressBar.setMaximum(len(self.tb_clip_Tiff.selectedIndexes()))
-             
-#             folder = (self.txt_output_clip.text()+"/"+str(os.path.basename(self.txt_Shape_path.text()))+"/").replace("\\","/")
-            folder = (self.txt_output_clip.text()+"/User_CLIP/").replace("\\","/") #폴더명 임의 지정
+            clip_pro_count = 0
+            self.clip_progressBar.setMaximum(len(self.tb_clip_Tiff.selectedIndexes())-1)
+            QApplication.processEvents() 
+#             folder =
+#             (self.txt_output_clip.text()+"/"+str(os.path.basename(self.txt_Shape_path.text()))+"/").replace("\\","/")
+            folder = (self.txt_output_clip.text() + "/User_CLIP/").replace("\\","/") #폴더명 임의 지정
             if os.path.exists(folder) == False:
                     os.mkdir(folder)
-#             
+
             for idx in self.tb_clip_Tiff.selectedIndexes():
                     #HDF5 수행 후 바로라면.
                     if (self.convert_tiff != []):
                         tif = self.convert_tiff[idx.row()]
                         filename = _util.GetFilename(tif)
-#                         
-                        Input = tif.replace(filename,filename+"_Convert")
-                        Output = folder+ filename + "_Clip.tif"
+#
+                        Input = tif.replace(filename,filename + "_Convert")
+
+                        if ("IMERG" in filename):
+                            if os.path.exists(self.txt_output_clip.text() + "/User_CLIP/GPM/") == False:
+                                gpm_folder = os.mkdir(self.txt_output_clip.text() + "/User_CLIP/GPM/")
+                            Output = self.txt_output_clip.text() + "/User_CLIP/GPM/" + filename + "_Clip.tif"
+                        
+                        elif ("CMORPH" in filename):
+                            if os.path.exists(self.txt_output_clip.text() + "/User_CLIP/CMORPH/") == False:
+                                cmorph_folder = os.mkdir(self.txt_output_clip.text() + "/User_CLIP/CMORPH/")
+                            Output = self.txt_output_clip.text() + "/User_CLIP/CMORPH/" + filename + "_Clip.tif"
+                                
+                        elif ("gsmap" in filename):
+                            if os.path.exists(self.txt_output_clip.text() + "/User_CLIP/GSMap/") == False:
+                                gsmap_folder = os.mkdir(self.txt_output_clip.text() + "/User_CLIP/GSMap/")
+                            Output = self.txt_output_clip.text() + "/User_CLIP/GSMap/" + filename + "_Clip.tif" 
+
+                        else:
+                            # 2021.11.09 조 추가
+                            # GPM, CMORPH, GSMap 이외의 것 처리할 경우
+                            Output = self.txt_output_clip.text() + "/User_CLIP/"+ filename + "_Clip.tif"        
+#                         Output = folder+ filename + "_Clip.tif"
+
                         try:
                             tif = tif.replace("\\","/")
-#                             arg = "gdal_translate.exe -a_srs EPSG:4326 -projwin  " +Clip_area + " -of GTiff "  +tif+ " " + Output
+#                             arg = "gdal_translate.exe -a_srs EPSG:4326
+#                             -projwin " +Clip_area + " -of GTiff " +tif+ " " +
+#                             Output
                             arg = 'gdal_translate.exe -a_srs EPSG:4326 -projwin {0} -of GTiff "{1}" "{2}"'.format(str(Clip_area),tif,Output)
                             sub.call(arg, shell=True) #2019-02-25, 전면교체
-                            clip_pro_count =clip_pro_count+1
+
                             sleep(1)
                             self.clip_progressBar.setValue(clip_pro_count)
-                             
+                            QApplication.processEvents()
+                            clip_pro_count = clip_pro_count + 1
                         except Exception as e:
                             QgsMessageLog.logMessage(str(e),"GPM CLIP")
         
         else:
-            _util.MessageboxShowInfo("GPM","Not Selected Files.")
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Not Selected Files.")
             return    
     
         
-    #============= UTM  =========================
+    #============= UTM =========================
     def UTM_apply_Click(self):
         try:
             str_Input_folder = self.txt_input_utm.text()
             str_output_folder = self.txt_output_utm.text()
-            if str_Input_folder.strip()=="":
-                _util.MessageboxShowInfo("GPM","Select Directory")
+            if str_Input_folder.strip() == "":
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Select Directory")
                 self.txt_input_utm.setFocus()
                 return
 
             if self.cmb_utm_target.currentIndex() == 0:
-                _util.MessageboxShowInfo("GPM", "Not selected UTM")
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Not selected UTM")
                 self.cmb_utm_target.setFocus()
                 return
 
-            if str_output_folder.strip()=="":
-                _util.MessageboxShowInfo("GPM","Select Directory")
+            if str_output_folder.strip() == "":
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Select Directory")
                 self.txt_output_utm.setFocus()
                 return
             
-            UTM_Tiff_file_List=_util.GetFilelist(str_Input_folder,"tif")
+            UTM_Tiff_file_List = _util.GetFilelist(str_Input_folder,"tif")
             self.utm_progressBar.setValue(0)
             self.utm_progressBar.setMaximum(len(UTM_Tiff_file_List))
             
@@ -1217,134 +1784,195 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     # 좌표계 변환
     def Convert_utm(self,list):
         try:
-            target=self.cmb_utm_target.currentText()
-            t_srs=_Dict.UTM_dic[str(target)]
+            target = self.cmb_utm_target.currentText()
+            t_srs = _Dict.UTM_dic[str(target)]
             
             check_Folder = _util.CheckFolder(str(self.txt_output_utm.text()))
             
-            utm_count=0 ;fail_file_list =[]
+            utm_count = 0
+            fail_file_list = []
             for file in list:
 #                 self.read_Layer_Get_Noadta(file)
                 filename = _util.GetFilename(file)
-                Output =self.txt_output_utm.text()+"/"+filename+"_UTM.tif" 
-#                 
+                
+                
+                if ("IMERG" in filename):
+                    if os.path.exists(self.txt_output_utm.text() + "/GPM/") == False:
+                        gpm_folder = os.mkdir(self.txt_output_utm.text() + "/GPM/")
+                    Output = self.txt_output_utm.text() + "/GPM/" + filename + "_UTM.tif" 
+                
+                elif ("CMORPH" in filename):
+                    if os.path.exists(self.txt_output_utm.text() + "/CMORPH/") == False:
+                        cmorph_folder = os.mkdir(self.txt_output_utm.text() + "/CMORPH/")
+                    Output = self.txt_output_utm.text() + "/CMORPH/" + filename + "_UTM.tif"
+                        
+                elif ("gsmap" in filename):
+                    if os.path.exists(self.txt_output_utm.text() + "/GSMap/") == False:
+                        gsmap_folder = os.mkdir(self.txt_output_utm.text() + "/GSMap/")
+                    Output = self.txt_output_utm.text() + "/GSMap/" + filename + "_UTM.tif"
+
+                else:
+                        # 2021.11.09 조 추가
+                        # GPM, CMORPH, GSMap 이외의 것 처리할 경우
+                        if os.path.exists(self.txt_output_utm.text() + "/UTM/") == False:
+                                os.mkdir(self.txt_output_utm.text() + "/UTM/")
+                        Output = self.txt_output_utm.text() + "/UTM/"+ filename + "_UTM.tif"        
+                    
+#                 Output =self.txt_output_utm.text()+"/"+filename+"_UTM.tif"
+#
                 arg = 'gdalwarp -overwrite -t_srs "{0}" -of GTiff "{1}" "{2}"'.format(str(t_srs),file,Output)
-                exe=_util.Execute(arg)
+                exe = _util.Execute(arg)
                 if (exe == 0):
                     sleep(1)
-                    utm_count=utm_count+1
+                    utm_count = utm_count + 1
                     self.utm_progressBar.setValue(utm_count)
                     sleep(1)
                 
                 else:
-                    _util.MessageboxShowInfo("GPM","Failed to perform normally.")
+                    _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Failed to perform normally.")
                     self.utm_progressBar.setValue(0)
                     return
                 
         except Exception as e:
-            _util.MessageboxShowError("GPM",str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter",str(e))
 
-    #============= Resampling  =========================
+    #============= Resampling =========================
     def Resample_apply_Click(self):
         try:
             Input_folder = self.txt_input_resample.text()
             output_folder = self.txt_output_resample.text()
             if _util.CheckKorea(output_folder) == True:
-                _util.MessageboxShowError("GPM","Check Path, No use Korean.\nPlease use English.")
+                _util.MessageboxShowError("KICT Satellite Precipitation Converter","Check Path, No use Korean.\nPlease use English.")
                 return
             else:
                 cellvalue = str(self.cellsize.value())
                 Method = self.cmb_resample_method.currentText()
                 
                 if Input_folder.strip() == "":
-                    _util.MessageboxShowInfo("GPM", "Select Directory")
+                    _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Select Directory")
                     self.txt_input_resample.setFocus()
                     return
                 else:
-                    Resample_folder_list=_util.GetFilelist(Input_folder, "tif")
+                    Resample_folder_list = _util.GetFilelist(Input_folder, "tif")
                 if output_folder.strip() == "":
-                    _util.MessageboxShowInfo("GPM", "Select Directory")
+                    _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Select Directory")
                     self.txt_output_resample.setFocus()
                     return
                 
                 try:
                     self.resampling_progressBar.setValue(0)
                     self.resampling_progressBar.setMaximum(len(Resample_folder_list))
-                    resample_count=0
+                    resample_count = 0
     #                 arg = "gdalwarp.exe"
                     check_Folder = _util.CheckFolder(output_folder)
-    #                     QgsMessageLog.logMessage(str(check_Folder),"GPM Resample")
-                    InfoMsg=[]
+    #                     QgsMessageLog.logMessage(str(check_Folder),"GPM
+    #                     Resample")
+                    InfoMsg = []
                     for file in Resample_folder_list:
                         filename = _util.GetFilename(file)
+                        
                         self.read_Layer_Get_Noadta(file)
-                        if (self.Projection) =="EPSG:4326":
+                        if (self.Projection) == "EPSG:4326":
                             InfoMsg.append(filename)
-                            # EPSG:4326 의 파일은 오류가 발생함. 해당 좌표 정보인 경우 -tr 구문을 사용할 수 없다고 함. 거기서 오류... 그래서 EPSG 4326 인  좌표쳬계는 메세지로 모아버림
-                            
-                            
-                        Output = output_folder + "/" +filename+"_resample.tif"
-    #                         arg = 'gdalwarp.exe -overwrite -s_srs {0} -t_srs {0} -r {1} -tr {2} {2} -dstalpha -of GTiff "{3}" "{4}"'.format(str(self.Projection),str(Method),str(cellvalue),str(file),str(Output))
+                        
+                        if ("IMERG" in filename):
+                            if os.path.exists(output_folder + "/GPM/") == False:
+                                gpm_folder = os.mkdir(output_folder + "/GPM/")
+                            Output = output_folder + "/GPM/" + filename + "_resample.tif"
+                        
+                        elif ("CMORPH" in filename):
+                            if os.path.exists(output_folder + "/CMORPH/") == False:
+                                cmorph_folder = os.mkdir(output_folder + "/CMORPH/")
+                            Output = output_folder + "/CMORPH/" + filename + "_resample.tif"
+                                
+                        elif ("gsmap" in filename):
+                            if os.path.exists(output_folder + "/GSMap/") == False:
+                                gsmap_folder = os.mkdir(output_folder + "/GSMap/")
+                            Output = output_folder + "/GSMap/" + filename + "_resample.tif"
+                         
+                        else:
+                            # 2021.11.09 조 추가
+                            # GPM, CMORPH, GSMap 이외의 것 처리할 경우
+                            if os.path.exists(output_folder + "/Resample/") == False:
+                                os.mkdir(self.txt_output_utm.text() + "/Resample/")
+                            Output = output_folder+ "/Resample/"+ filename + "_resample.tif"        
+                        
+                            # EPSG:4326 의 파일은 오류가 발생함.  해당 좌표 정보인 경우 -tr 구문을
+                            # 사용할 수 없다고 함.  거기서 오류...  그래서 EPSG 4326 인 좌표쳬계는
+                            # 메세지로 모아버림
+#                         Output = output_folder + "/"
+#                         +filename+"_resample.tif"
+    #                         arg = 'gdalwarp.exe -overwrite -s_srs {0} -t_srs
+    #                         {0} -r {1} -tr {2} {2} -dstalpha -of GTiff "{3}"
+    #                         "{4}"'.format(str(self.Projection),str(Method),str(cellvalue),str(file),str(Output))
                         arg = 'gdalwarp.exe -overwrite -s_srs {0} -t_srs {0} -r {1} -tr {2} {2} -of GTiff "{3}" "{4}"'.format(str(self.Projection),str(Method),str(cellvalue),str(file),str(Output))
     #                         QgsMessageLog.logMessage(str(arg),"RESAMPLING")
                         exe = sub.call(arg,shell=True)
     #                         QgsMessageLog.logMessage(str(exe),"RESAMPLING")
                         sleep(0.5)
-                        resample_count=resample_count+1
+                        resample_count = resample_count + 1
                         self.resampling_progressBar.setValue(resample_count)
                         sleep(0.5)
                         
-                    if (len(InfoMsg)) !=0:
-                        _util.MessageboxShowInfo("GPM", str(len(InfoMsg))+"files Not Processing.\nCheck Projection.") #https://trac.osgeo.org/gdal/ticket/6742
+                    if (len(InfoMsg)) != 0:
+                        _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", str(len(InfoMsg)) + "files Not Processing.\nCheck Projection.") #https://trac.osgeo.org/gdal/ticket/6742
                     
                     
                 except Exception as e:
-                    _util.MessageboxShowError("GPM",str(e))    
+                    _util.MessageboxShowError("KICT Satellite Precipitation Converter",str(e))    
         except Exception as ex:
-            _util.MessageboxShowError("GPM",str(ex))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter",str(ex))
 
     
     # =============== ACCUM ===========================================
     def select_files(self):
         try: 
+            
+            if (str(self.tlb_filelist_Accum.item(0,0)) == "None"):
+                files = QFileDialog.getOpenFileNames(self, "Open files", "C:\\", "tif (*.tif)")[0]
+            else:
+                files = QFileDialog.getOpenFileNames(self, "Open files", "", "tif (*.tif)")[0]
+            
             self.tlb_filelist_Accum.clear() #초기화
             self.tlb_filelist_Accum.setRowCount(0)
             
             filter = "tif (*.tif)"
 #             file_name = QtGui.QFileDialog()
 #             file_name.setFileMode(QFileDialog.ExistingFiles)
-#             files = file_name.getOpenFileNamesAndFilter(self, "Open files", "C:\\", filter)
-            file_name = QFileDialog()
-            file_name.setFileMode(QFileDialog.ExistingFiles)
-            files = file_name.getOpenFileNames(self, "Open files", "C:\\", filter)
-            FileList = files[0]
+#             files = file_name.getOpenFileNamesAndFilter(self, "Open files",
+#             "C:\\", filter)
+#             file_name = QFileDialog()
+#             file_name.setFileMode(QFileDialog.ExistingFiles)
+            
+#             FileList = files[0]
 
             self.tlb_filelist_Accum.setColumnCount(1)
             self.tlb_filelist_Accum.setHorizontalHeaderLabels(["Layer List"])
             stylesheet = "QHeaderView::section{Background-color:rgb(174, 182, 255, 100)}"
             self.tlb_filelist_Accum.setStyleSheet(stylesheet)
             
-            count=0; self.accum_list = []
-            for file in FileList:
+            count = 0
+            self.accum_list = []
+            for file in files:
                 self.tlb_filelist_Accum.insertRow(count)
                 self.tlb_filelist_Accum.setItem(count, 0, QTableWidgetItem(str(file)))
                 self.accum_list.append(str(file))
                 count = count + 1
                 
-            #프로그레스바 신설.. 내가 불편해서 만들었음
+            #프로그레스바 신설..  내가 불편해서 만들었음
             self.acc_progressBar.setValue(0)
             self.acc_progressBar.setMaximum(len(self.accum_list))
                 
         except Exception as e:
-            _util.MessageboxShowInfo("GPM",str(e))
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter",str(e))
             
     #=====ACCUM APPLY=======
     def Accum_apply_Click(self):
         try:
             # OUTPUT 폴더
             accum_output = self.txt_output_accum.text()
-            if accum_output.strip() =="":
-                _util.MessageboxShowInfo("GPM", "The folder path is not set.")
+            if accum_output.strip() == "":
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "The folder path is not set.")
                 self.txt_output_accum.setFocus()
                 return           
             
@@ -1352,22 +1980,26 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             accum_run = self.Accum_Tiff()
             
         except Exception as e:
-            _util.MessageboxShowError("GPM", str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter", str(e))
     
     def Accum_Tiff(self):
         try:
 #             self.accum_band_list = []
             if self.rdo_gpm_acc.isChecked():
+                gpm_folder = self.txt_output_accum.text() + "/GPM/"
+                if os.path.exists(gpm_folder) == False:
+                    os.mkdir(gpm_folder)
                 self.Accum_Amount()
+                shutil.rmtree(self.txt_output_accum.text() + "/GPM/Amount")
                 
             if self.rdo_cmorph_acc.isChecked():
-                pro_count=0
+                pro_count = 0
                 self.acc_progressBar.setValue(pro_count)
                 self.accum_check_CMORPH(self.accum_list)
                 self.acc_progressBar.setValue(len(self.accum_list))
             
             if self.rdo_gsmap_acc.isChecked():
-                pro_count=0
+                pro_count = 0
                 self.acc_progressBar.setValue(pro_count)
                 self.accum_check_GSMap(self.accum_list)
                 self.acc_progressBar.setValue(len(self.accum_list))
@@ -1378,28 +2010,30 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     #이 부분은 GPM 데이터가 30 분 단위로 생성되서 쓰는 기능임.
     def Accum_Amount(self):
         try:
-            self.amount_list=[]
+            self.amount_list = []
             #자꾸 꼬이는 것 같아서
-            pro_count=0
+            pro_count = 0
             for filelist in self.accum_list:
 #                 _util.MessageLogShowInfo("GPM Amount",str(filelist))
-                if os.path.exists(self.txt_output_accum.text()+"/Amount/") == False:
-                    os.mkdir(self.txt_output_accum.text()+"/Amount/")
+                if os.path.exists(self.txt_output_accum.text() + "/GPM/Amount") == False:
+                    os.mkdir(self.txt_output_accum.text() + "/GPM/Amount")
                     
                 filename = _util.GetFilename(filelist)
-                Output_Amount = self.txt_output_accum.text()+"/Amount/"+filename+"_Amount.tif"
+                Output_Amount = self.txt_output_accum.text() + "/GPM/Amount/" + filename + "_Amount.tif"
 #                 self.read_Layer_Get_Noadta(filelist)
 #                 QgsMessageLog.logMessage((self.Nodata),"GPM Accum Run")
-#                 amount = _utilAC.accum_amount(filelist,Output_Amount,self.Nodata)
+#                 amount =
+#                 _utilAC.accum_amount(filelist,Output_Amount,self.Nodata)
                 amount = _utilAC.accum_amount(filelist,Output_Amount)
 #                 QgsMessageLog.logMessage(str(Output_Amount),"GPM Accum Run")
                 self.amount_list.append(str(Output_Amount))
 #                 QgsMessageLog.logMessage(str(self.amount_list),"GPM Amount")
-                pro_count=pro_count+1
-                self.acc_progressBar.setValue(pro_count/2)
+                pro_count = pro_count + 1
+                self.acc_progressBar.setValue(pro_count / 2)
                 
             if self.rdo_gpm_acc.isChecked(): 
                 self.accum_check_GPM(self.amount_list)
+#
                 
             
             
@@ -1413,96 +2047,41 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             _util.MessageboxShowInfo("GPM Amount", str(e))
                 
                 
-    #GPM 누적강우 처리            
+    #GPM 누적강우 처리
     def accum_check_GPM(self,list):
         try:
+            gpm_folder = self.txt_output_accum.text() + "/GPM/"
+#             if os.path.exists(gpm_folder) == False:
+#                 os.mkdir(gpm_folder)
+                
+            
             #2018-10-17 JO : 라디오 버튼이 아닌 체크박스로 중복 수행 가능토록 변경
             if self.chk_Accum_1H.isChecked():
-                GPM_Accum.accum_GPM_1H(self.txt_output_accum.text(),list)
+#                 GPM_Accum.accum_GPM_1H(self.txt_output_accum.text(),list)
+                GPM_Accum.accum_GPM_1H(self.txt_output_accum.text() + "/GPM/",list)
                 
             #============ 3h ===========
             if self.chk_Accum_3H.isChecked():
-                GPM_Accum.accum_GPM_3H(self.txt_output_accum.text(),list)
-#                 H3hour_list=[]
-#                 if os.path.exists(self.txt_output_accum.text()+"/3H/") == False:
-#                     os.mkdir(self.txt_output_accum.text()+"/3H/")
-#                     
-#                 for f_accum in list:
-#                     filename=_util.GetFilename(f_accum)
-#                     outputname = self.txt_output_accum.text()+"/3H/"+filename+"_3H.tif"    
-#                     H3hour_list.append(f_accum)
-#                     if len(H3hour_list) > 6:
-#                         del H3hour_list[0:6]
-#                         
-#                     if len(H3hour_list) == 6:
-# #                         QgsMessageLog.logMessage(str(H3hour_list),"GPM Accum Run 3H")
-#                         _utilAC.Accum_hour(H3hour_list,outputname)
-                    
-#             
+                GPM_Accum.accum_GPM_3H(self.txt_output_accum.text() + "/GPM/",list)
+
             #=============== 6H===================
             if self.chk_Accum_6H.isChecked():
-                GPM_Accum.accum_GPM_6H(self.txt_output_accum.text(),list)
-#                 H6hour_list=[]
-#                 if os.path.exists(self.txt_output_accum.text()+"/6H/") == False:
-#                     os.mkdir(self.txt_output_accum.text()+"/6H/")
-#                     
-#                 for f_accum in list:
-#                     filename=_util.GetFilename(f_accum)
-#                     outputname = self.txt_output_accum.text()+"/6H/"+filename+"_6H.tif"    
-#                     H6hour_list.append(f_accum)
-#                     if len(H6hour_list) > 12:
-#                         del H6hour_list[0:12]
-#                         
-#                     if len(H6hour_list) == 12:
-# #                         QgsMessageLog.logMessage(str(H6hour_list),"GPM Accum Run 6H")
-#                         _utilAC.Accum_hour(H6hour_list,outputname)
+                GPM_Accum.accum_GPM_6H(self.txt_output_accum.text() + "/GPM/",list)
+
                 
             #=============== 9H===================
             if self.chk_Accum_9H.isChecked():
-                GPM_Accum.accum_GPM_9H(self.txt_output_accum.text(),list)
-#                 H9hour_list=[]
-#                 if os.path.exists(self.txt_output_accum.text()+"/9H/") == False:
-#                     os.mkdir(self.txt_output_accum.text()+"/9H/")
-#                     
-#                 for f_accum in list:
-#                     filename=_util.GetFilename(f_accum)
-#                     outputname = self.txt_output_accum.text()+"/9H/"+filename+"_9H.tif"    
-#                     H9hour_list.append(f_accum)
-#                     if len(H9hour_list) > 18:
-#                         del H9hour_list[0:18]
-#                     if len(H9hour_list) == 18:
-# #                         QgsMessageLog.logMessage(str(H9hour_list),"GPM Accum Run 9H")
-#                         _utilAC.Accum_hour(H9hour_list,outputname)
+                GPM_Accum.accum_GPM_9H(self.txt_output_accum.text() + "/GPM/",list)
+
             #=============== 12H===================
             if self.chk_Accum_12H.isChecked():
-                GPM_Accum.accum_GPM_12H(self.txt_output_accum.text(),list)
-#                 H12hour_list=[]
-#                 if os.path.exists(self.txt_output_accum.text()+"/12H/") == False:
-#                     os.mkdir(self.txt_output_accum.text()+"/12H/")
-#                 
-#                 for f_accum in list:
-#                     filename=_util.GetFilename(f_accum)
-#                     outputname = self.txt_output_accum.text()+"/12H/"+filename+"_12H.tif"       
-#                     H12hour_list.append(f_accum)
-#                     if len(H12hour_list) > 24:
-#                         del H12hour_list[0:24]
-#                     if len(H12hour_list) == 24:
-#                         _utilAC.Accum_hour(H12hour_list,outputname)
+                GPM_Accum.accum_GPM_12H(self.txt_output_accum.text() + "/GPM/",list)
+
                     
             #=============== 24H===================
             if self.chk_Accum_24H.isChecked():
-                GPM_Accum.accum_GPM_24H(self.txt_output_accum.text(),list)
-#                 H24hour_list=[]
-#                 if os.path.exists(self.txt_output_accum.text()+"/24H/") == False:
-#                     os.mkdir(self.txt_output_accum.text()+"/24H/")
-#                 for f_accum in list:
-#                     filename=_util.GetFilename(f_accum)
-#                     outputname = self.txt_output_accum.text()+"/24H/"+filename+"_24H.tif"   
-#                     H24hour_list.append(f_accum)
-#                     if len(H24hour_list)>48:
-#                         del H24hour_list[0:48]
-#                     if len(H24hour_list) == 48:
-#                         _utilAC.Accum_hour(H24hour_list,outputname)
+                GPM_Accum.accum_GPM_24H(gpm_folder,list)
+
         except Exception as e:
             _util.MessageboxShowInfo("GPM ACCUM HOUR", str(e))
             
@@ -1510,46 +2089,51 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     #CMORPH 누적 강우 처리
     def accum_check_CMORPH(self,list):
         try:
+            cmorph_folder = self.txt_output_accum.text() + "/CMORPH/"
+            if (os.path.exists(cmorph_folder)) == False:
+                os.mkdir(cmorph_folder)
             #============ 6h ===========
             if self.chk_Accum_6H.isChecked():
-                CMORPH_accum.accum_CMORP_6H(self.txt_output_accum.text(),list)
+                CMORPH_accum.accum_CMORP_6H(cmorph_folder,list)
             
             #============ 9h ===========
             if self.chk_Accum_9H.isChecked():
-                CMORPH_accum.accum_CMORP_9H(self.txt_output_accum.text(),list)
+                CMORPH_accum.accum_CMORP_9H(cmorph_folder,list)
             
             #============ 12h ===========
             if self.chk_Accum_12H.isChecked():
-                CMORPH_accum.accum_CMORP_12H(self.txt_output_accum.text(),list)
+                CMORPH_accum.accum_CMORP_12H(cmorph_folder,list)
                 
             #============ 24h ===========
             if self.chk_Accum_24H.isChecked():
-                CMORPH_accum.accum_CMORP_24H(self.txt_output_accum.text(),list)
+                CMORPH_accum.accum_CMORP_24H(cmorph_folder,list)
         except Exception as e:
             _util.MessageboxShowInfo("GPM ACCUM HOUR", str(e))
     
     #GSMap 누적강우 처리
     def accum_check_GSMap(self,list):
         try:
+            if (os.path.exists(self.txt_output_accum.text() + "/GSMap")) == False:
+                os.mkdir(self.txt_output_accum.text() + "/GSMap")
             #============ 3h ===========
             if self.chk_Accum_3H.isChecked():
-                GSMap_accum.accum_GSMap_3H(self.txt_output_accum.text(),list)
+                GSMap_accum.accum_GSMap_3H(self.txt_output_accum.text() + "/GSMap/",list)
             
             #============ 6h ===========
             if self.chk_Accum_6H.isChecked():
-                GSMap_accum.accum_GSMap_6H(self.txt_output_accum.text(),list)
+                GSMap_accum.accum_GSMap_6H(self.txt_output_accum.text() + "/GSMap/",list)
             
             #============ 9h ===========
             if self.chk_Accum_9H.isChecked():
-                GSMap_accum.accum_GSMap_9H(self.txt_output_accum.text(),list)
+                GSMap_accum.accum_GSMap_9H(self.txt_output_accum.text() + "/GSMap/",list)
             
             #============ 12h ===========
             if self.chk_Accum_12H.isChecked():
-                GSMap_accum.accum_GSMap_12H(self.txt_output_accum.text(),list)
+                GSMap_accum.accum_GSMap_12H(self.txt_output_accum.text() + "/GSMap/",list)
                 
             #============ 24h ===========
             if self.chk_Accum_24H.isChecked():
-                GSMap_accum.accum_GSMap_24H(self.txt_output_accum.text(),list)
+                GSMap_accum.accum_GSMap_24H(self.txt_output_accum.text() + "/GSMap/",list)
         except Exception as e:
             _util.MessageboxShowInfo("GPM ACCUM HOUR", str(e))
     
@@ -1561,36 +2145,36 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             output_file = self.txt_shp_field.text()
                         
             if Input_file.strip() == "":
-                _util.MessageboxShowInfo("GPM", "Select shp file ")
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Select shp file ")
                 self.txt_csv_shp.setFocus()
                 return
             
             #나온 값을 csv 파일로 내보내면 됨.
             if output_file.strip() == "":
-                _util.MessageboxShowInfo("GPM", "Select Save file name ")
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Select Save file name ")
                 self.txt_shp_field.setFocus()
                 return
             
-            #여기서 중요 포인트는 shape 파일은 반드시 좌표계를 지니고 있어야함(prj 파일) 
-            v_layer =QgsVectorLayer(Input_file,"SHP","ogr")
+            #여기서 중요 포인트는 shape 파일은 반드시 좌표계를 지니고 있어야함(prj 파일)
+            v_layer = QgsVectorLayer(Input_file,"SHP","ogr")
             
             try:
                 # 2018-11-09 : 헤더가 존재하면 파일을 생성하고 없으면 생성하지 않음
                 self.csv_file = open(output_file,'w+')
                 self.csv_file.write("filename")
-                #comboBox로 변경 시                
+                #comboBox로 변경 시
                 get_shape_fieldname = self.get_shape_coord((self.cmb_FieldAtt.currentText()))
                 #lOG
                 
-#                 #2018-11-09 : get_shape_fieldname 이 정상 수행 되었을 때 다음 수행    
+#                 #2018-11-09 : get_shape_fieldname 이 정상 수행 되었을 때 다음 수행
                 if get_shape_fieldname == True:
 #                     _util.MessageLogShowInfo("CSV",str(self.filenames[0]))
-                    cell_values = self.shape_coord_raster_cellvalue(self.filenames[0])
+                    cell_values = self.shape_coord_raster_cellvalue(self.filename[0])
                     self.csv_file.close() 
                     _util.MessageboxShowInfo("Make CSV","Make CSV Function Completed.")
                     
             except Exception as e:
-                _util.MessageboxShowInfo("GPM", str(e))
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", str(e))
             
             #2018-11-09 : get_shape_fieldname 이 None인 경우 생성되었던 csv_file 제거한다.
             if get_shape_fieldname == False:
@@ -1598,26 +2182,32 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                 os.remove(output_file)
                 return
             
-            self.txt_csv_shp.clear()
-            self.cmb_FieldAtt.clear()
+
+            #check box 선택되어 있으면 shp 파일 유지
+            #아니면 초기화, 기본값 체크
+            if self.chk_point_shp.isChecked():
+                self.read_SHP()
+            else:
+                self.txt_csv_shp.clear()
+                self.cmb_FieldAtt.clear()
             self.txt_raster_tiff.clear()
             self.txt_shp_field.clear()
             
         except Exception as e:
-            _util.MessageboxShowError("GPM",str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter",str(e))
             
     
     #2018-10-19 : shape의 좌표, 필드 이름의 값 가져오기.
-#     def get_shape_coord(self,shapefile,txt):   
+#     def get_shape_coord(self,shapefile,txt):
     def get_shape_coord(self, txt): 
         try:
             _util.MessageLogShowInfo("CSV",str(txt))
             self.point_list = []         
-            #필드 값이 있는 것이면 수행. 없으면 msg
+            #필드 값이 있는 것이면 수행.  없으면 msg
 #             if ((txt.upper())) not in fieldNames:
             if ((txt)) not in (self.fieldNames):
-                _util.MessageboxShowInfo("GPM", "No have FieldName")
-                #2018-11-09 msg 출력 후 에 진행 X, return으로 stop 시킴      
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "No have FieldName")
+                #2018-11-09 msg 출력 후 에 진행 X, return으로 stop 시킴
                 return False
             
             _util.MessageLogShowInfo("CSV",str((txt) in (self.fieldNames)))
@@ -1631,40 +2221,42 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                     self.point_list.append(geom.asPoint())
 #                     _util.MessageLogShowInfo("CSV",str(self.point_list))
 #                     self.csv_file.write(","+str(feat[(txt.upper())]))
-                    self.csv_file.write(","+str(feat[(txt)]))
+                    self.csv_file.write("," + str(feat[(txt)]))
                     _util.MessageLogShowInfo("CSV",str(feat[(txt)]))
             return True
         
         except Exception as exc:
             _util.MessageboxShowError("GPM CSV",str(exc))
      
-    # 2019-03-07 : SHP를 읽기만하는 곳 
+    # 2019-03-07 : SHP를 읽기만하는 곳
     def read_SHP(self):
         self.cmb_FieldAtt.clear()
-        fname = QFileDialog.getOpenFileName(self, 'Open file', 'c://', "Shape files (*.shp)")
-        if _util.CheckFile(str(fname[0])):
-            self.txt_csv_shp.setText(str(fname[0]))
+#         fname = QFileDialog.getOpenFileName(self, 'Open file', 'c://', "Shape
+#         files (*.shp)")
+#         if _util.CheckFile(str(fname)):
+#             self.txt_csv_shp.setText(str(fname))
             
-            v_layer = QgsVectorLayer(str(fname[0]), "SHP", "ogr")
-            prov = (v_layer).dataProvider()
-            self.features = (v_layer).getFeatures()
-            # 필드 이름
-            self.fieldNames = []
-            fields = prov.fields()
-    #         fields = prov.fields()
-            for field in fields:
-                # txt가 아닌 콤보 박스에 세팅되도로고 함..
-                self.fieldNames.append(str(field.name()))
+        v_layer = QgsVectorLayer(str(self.txt_csv_shp.text()), "SHP", "ogr")
+        prov = (v_layer).dataProvider()
+        self.features = (v_layer).getFeatures()
+        # 필드 이름
+        self.fieldNames = []
+        fields = prov.fields()
+#         fields = prov.fields()
+        for field in fields:
+            # txt가 아닌 콤보 박스에 세팅되도로고 함..
+            self.fieldNames.append(str(field.name()))
 #                 _util.MessageLogShowInfo("read_SHP",str(field.name()))
-            self.cmb_FieldAtt.addItems(self.fieldNames)
-                
+        self.cmb_FieldAtt.addItems(self.fieldNames)
+    
+        
     # shape 좌표 위치의 래스터 셀 값 가져오기
     # 래스터 선택해야 함.
     def shape_coord_raster_cellvalue(self,raster):
         try:
             for r_layer in raster:
                 
-                self.csv_file.write("\n"+r_layer)
+                self.csv_file.write("\n" + r_layer)
                 layer = QgsRasterLayer(r_layer)
                 pixelWidth = layer.rasterUnitsPerPixelX()
                 pixelHeight = layer.rasterUnitsPerPixelY()
@@ -1672,12 +2264,12 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                 for x, y in self.point_list:
                     ident = layer.dataProvider().identify(QgsPointXY(x, y),QgsRaster.IdentifyFormatValue)
                     if ident.isValid():
-                        self.csv_file.write(","+str(ident.results()[1]))
+                        self.csv_file.write("," + str(ident.results()[1]))
             
         except Exception as e:
-            _util.MessageboxShowError("GPM",str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter",str(e))
     
-    #=============  Function =========================
+    #============= Function =========================
     def select_files_func(self):
         try: 
             self.tlb_Function.clear() #초기화
@@ -1695,65 +2287,72 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             self.tlb_Function.setStyleSheet(stylesheet)
             
             
-            count = 0;self.func_list = []
+            count = 0
+            self.func_list = []
             for file in FileList:
                 QgsMessageLog.logMessage(str(file),"GPM FUNCTION")
                 self.tlb_Function.insertRow(count)
-                self.tlb_Function.setItem(count, 0, QTableWidgetItem(str(file)+"@1"))
+                self.tlb_Function.setItem(count, 0, QTableWidgetItem(str(file) + "@1"))
                 self.func_list.append(file)
-                count=count+1
+                count = count + 1
                 
             # 테이블 데이터 수정 못하게 옵션
             self.tlb_Function.setEditTriggers(QTableWidget.NoEditTriggers)
 
         except Exception as e:
-            _util.MessageboxShowInfo("GPM",str(e))
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter",str(e))
     
     
     def Fun_apply_Click(self):
-        #아무래도 파일 불러오는 기능이 따로 있어야 하나 봅니다... 지금 제 눈에 이게 제일 쉬워보이니 이걸 먼저 해볼까요
+        #아무래도 파일 불러오는 기능이 따로 있어야 하나 봅니다...  지금 제 눈에 이게 제일 쉬워보이니 이걸 먼저 해볼까요
         
         try:
             if "X".lower() in (self.txt_function_txt.text()):
-#                 calculus = "("+(self.txt_function_txt.text()).replace("X".lower(), "X@1").replace("&", "and")+"*1)+0"
-#                 calculus = "("+(self.txt_function_txt.text()).replace("X".lower(), "X@1").replace("&", "and")+"*1)+0"
+#                 calculus =
+#                 "("+(self.txt_function_txt.text()).replace("X".lower(),
+#                 "X@1").replace("&", "and")+"*1)+0"
+#                 calculus =
+#                 "("+(self.txt_function_txt.text()).replace("X".lower(),
+#                 "X@1").replace("&", "and")+"*1)+0"
                 calculus2 = (self.txt_function_txt.text()).replace("X".lower(), "A")
                 QgsMessageLog.logMessage(str(calculus2), "GPM FUNC")
-#                 calculus="("+self.txt_function_txt.text().replace("&", "and")+"*1)+0"
+#                 calculus="("+self.txt_function_txt.text().replace("&",
+#                 "and")+"*1)+0"
             path = self.txt_output_fun.text()
 #             폴더 채택이 아닌 파일 단위로 결과 출력...
 #             ☆★☆★ 2018-08-20 : 경로가 존재하지 않으면 오류 반환 ☆★☆★
-            isPath=os.path.dirname(path)
-            if os.path.isdir(isPath)==False:
-                _util.MessageboxShowError("GPM","This directory does not exist.")
+            isPath = os.path.dirname(path)
+            if os.path.isdir(isPath) == False:
+                _util.MessageboxShowError("KICT Satellite Precipitation Converter","This directory does not exist.")
                 self.txt_output_fun.setFocus()
                 return
                
             # 수식 칸이 빈칸이면 오류 반환
-            if self.txt_function_txt.text().strip()=="":
-                _util.MessageboxShowError("GPM","The Operation you entered is incorrect or missing.")
+            if self.txt_function_txt.text().strip() == "":
+                _util.MessageboxShowError("KICT Satellite Precipitation Converter","The Operation you entered is incorrect or missing.")
                 self.txt_function_txt.setFocus()
                 return
             
             #여기서 선택한 레이어들만 식 적용되도록!
-            select_list=[]
+            select_list = []
             for idx in self.tlb_Function.selectedIndexes():
                 select_list.append(self.func_list[idx.row()])
                 
                 #===== 2019-10-21 gdal 로 변경
-#                 QgsMessageLog.logMessage(str(str(self.func_list[idx.row()])), "GPM FUNC")
-# #                 self.read_Layer_Get_Noadta(str(self.func_list[idx.row()]))
+#                 QgsMessageLog.logMessage(str(str(self.func_list[idx.row()])),
+#                 "GPM FUNC")
+# # self.read_Layer_Get_Noadta(str(self.func_list[idx.row()]))
 #                 tiff_ds = gdal.Open(str(self.func_list[idx.row()]))
 #                 QgsMessageLog.logMessage(str(tiff_ds), "GPM FUNC")
 #                 Nodata = tiff_ds.GetRasterBand(1) .GetNoDataValue()
 #                 QgsMessageLog.logMessage(str(Nodata), "GPM FUNC")
-#                   
+#
 
             
             entries = [] #참조된 레이어 리스트
             for lyr in _layers:
                 QgsMessageLog.logMessage(str(lyr),"GPM FUNCTION") 
-                if (lyr.type()==QgsMapLayer.RasterLayer):
+                if (lyr.type() == QgsMapLayer.RasterLayer):
                     QgsMessageLog.logMessage(str(lyr.name()),"GPM FUNCTION") 
                     QgsMessageLog.logMessage(str(lyr.dataProvider().dataSourceUri()),"GPM FUNCTION") 
                     
@@ -1762,29 +2361,37 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                     
 #                     call_arg = [osgeo4w,
 #                             "gdal_calc",
-#                             "-A", str(self.func_list[idx.row()]), "--format", "GTiff", "--calc", str(calculus2),
-#                             "--outfile", str(path + "/" +str(lyr.name()) + "_function.tif"), "--NoDataValue", str(Nodata)]
-                    call_arg = "gdal_calc -A {0} --format GTiff --calc {1} --outfile {2} --NoDataValue {3}".format(fun_layer,
-                                                                                                                   str(calculus2),(path+"/"+str(lyr.name())+"_function.tif"),str(self.Nodata))
+#                             "-A", str(self.func_list[idx.row()]), "--format",
+#                             "GTiff", "--calc", str(calculus2),
+#                             "--outfile", str(path + "/" +str(lyr.name()) +
+#                             "_function.tif"), "--NoDataValue", str(Nodata)]
+                    call_arg = 'gdal_calc -A "{0}" --format GTiff --calc {1} --outfile "{2}" --NoDataValue {3}'.format(fun_layer,
+                                                                                                                   str(calculus2),(path + "/" + str(lyr.name()) + "_function.tif"),str(self.Nodata))
                     QgsMessageLog.logMessage(str(call_arg), "GPM FUNC")
                     sub.call(call_arg, shell=True)
-                    
+                    if self.chk_addLater_func.isChecked():
+                        self.Addlayer_OutputFile((path + "/" + str(lyr.name()) + "_function.tif"))
+                      
                     
 #                     ras = QgsRasterCalculatorEntry()
 #                     if (lyr.name()) in select_list:
-#     #                 ras.ref = lyr.name()+"@1"
+#     # ras.ref = lyr.name()+"@1"
 #                         ras.ref = "X@1"
 #                         ras.raster = lyr
 #                         ras.bandNumber = 1
 #                         entries.append( ras )
 #                         #QgsMessageLog.logMessage(str(entries),"gpm func")
-#     #        
-#     #                     #calc = QgsRasterCalculator( '(ras@1 / ras@1) * ras@1', path + lyr.name() + "_suffix.tif", 'GTiff', lyr.extent(), lyr.width(), lyr.height(), entries )
-#                         calc = QgsRasterCalculator( calculus, path+"/"+lyr.name()+"_function.tif", 'GTiff', lyr.extent(), lyr.width(), lyr.height(), entries )
+#     #
+#     # #calc = QgsRasterCalculator( '(ras@1 / ras@1) * ras@1', path +
+#     lyr.name() + "_suffix.tif", 'GTiff', lyr.extent(), lyr.width(),
+#     lyr.height(), entries )
+#                         calc = QgsRasterCalculator( calculus,
+#                         path+"/"+lyr.name()+"_function.tif", 'GTiff',
+#                         lyr.extent(), lyr.width(), lyr.height(), entries )
 #                         calc.processCalculation()
-            _util.MessageboxShowInfo("GPM","Complete Raster Calculator.")
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Complete Raster Calculator.")
         except Exception as e:
-            _util.MessageboxShowInfo("GPM",str(e))
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter",str(e))
        
     # table 셋팅
     def Set_table_list_fun(self):
@@ -1797,36 +2404,40 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         stylesheet = "QHeaderView::section{Background-color:rgb(174, 182, 255, 100)}"
         self.tlb_Function.setStyleSheet(stylesheet)
 
-        count = 0 ; self.func_list=[]
+        count = 0
+        self.func_list = []
         for layer in _layers:
             #이 곳에서 리스트 목록에 올라가는 것은 Raster, TIFF 로 제한 둘 것.
-            if (layer.type()==QgsMapLayer.RasterLayer):
+            if (layer.type() == QgsMapLayer.RasterLayer):
                 self.tlb_Function.insertRow(count)
-                self.tlb_Function.setItem(count, 0, QTableWidgetItem(layer.name()+"@1"))
+                self.tlb_Function.setItem(count, 0, QTableWidgetItem(layer.name() + "@1"))
                 self.func_list.append(layer.name())
-                count=count+1
+                count = count + 1
 
         # 테이블 데이터 수정 못하게 옵션
         self.tlb_Function.setEditTriggers(QTableWidget.NoEditTriggers)
     
-    #=============  Make ASC  =========================
+    #============= Make ASC =========================
     def ASC_apply_Click(self):
         try:
 #             str_Input_file = self.ASC_files
-            str_Input_file =_util.GetFilelist(self.txt_input_asc.text(),"tif")
+            str_Input_file = _util.GetFilelist(self.txt_input_asc.text(),"tif")
             # 파일 선택이 안되어 있으면 다믐 메시지 반환
 #             if str_Input_file.strip() == "":
-            if len(str_Input_file) ==0:
-                _util.MessageboxShowInfo("GPM", "Select Tif file ")
+            if len(str_Input_file) == 0:
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "Select Tif file ")
                 self.txt_input_asc.setFocus()
                 return
             # output 폴더 지정 안되어 있거나 폴더 경로가 올바르지 않을 경우 다음 메시지 반환
-            if os.path.isdir(self.txt_output_asc.text())==False:
+            if os.path.isdir(self.txt_output_asc.text()) == False:
                 _util.MessageboxShowError("GPM Make ASC","This directory does not exist.")
                 self.txt_output_asc.setFocus()
                 return
             
-            i = 0 ; count_pro_asc=1; self.asc_progressBar.setValue(0); self.asc_progressBar.setMaximum(len(str_Input_file))
+            i = 0
+            count_pro_asc = 1
+            self.asc_progressBar.setValue(0)
+            self.asc_progressBar.setMaximum(len(str_Input_file))
 
             for asc in str_Input_file:
                 self.read_Layer_Get_Noadta(asc)
@@ -1834,15 +2445,37 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                 _util.MessageLogShowInfo("ASC",str(self.Nodata))
                 
                 filename = _util.GetFilename(asc)
-                output_filename = self.txt_output_asc.text() + ("/{0}.asc").format(filename)
+                if ("IMERG" in filename):
+                    if os.path.exists(self.txt_output_asc.text() + "/GPM/") == False:
+                        gpm_folder = os.mkdir(self.txt_output_asc.text() + "/GPM/")
+                    output_filename = self.txt_output_asc.text() + "/GPM/" + ("/{0}.asc").format(filename)
                 
-                arg  = 'gdal_translate.exe -of AAIGrid -a_nodata {0} "{1}" "{2}"'.format(self.Nodata,asc,output_filename)
+                if ("CMORPH" in filename):
+                    if os.path.exists(self.txt_output_asc.text() + "/CMORPH/") == False:
+                        cmorph_folder = os.mkdir(self.txt_output_asc.text() + "/CMORPH/")
+                    output_filename = self.txt_output_asc.text() + "/CMORPH/" + ("/{0}.asc").format(filename)
+                        
+                if ("gsmap" in filename):
+                    if os.path.exists(self.txt_output_asc.text() + "/GSMap/") == False:
+                        gsmap_folder = os.mkdir(self.txt_output_asc.text() + "/GSMap/")
+                    output_filename = self.txt_output_asc.text() + "/GSMap/" + ("/{0}.asc").format(filename)
+                
+                #else:
+                #    ascFolder=self.txt_output_asc.text() + "/asc/"
+                #    if os.path.exists(ascFolder) == False:
+                #        os.mkdir(ascFolder)
+                #    output_filename = ascFolder + ("/{0}.asc").format(filename)
+                
+#                 output_filename = self.txt_output_asc.text() +
+#                 ("/{0}.asc").format(filename)
+                
+                arg = 'gdal_translate.exe -of AAIGrid -a_nodata {0} "{1}" "{2}"'.format(self.Nodata,asc,output_filename)
                 _util.MessageLogShowInfo("ASC",str(arg))
                 sub.call(arg,shell=True)
                 
                 sleep(1)
                 self.asc_progressBar.setValue(count_pro_asc)
-                count_pro_asc=count_pro_asc+1
+                count_pro_asc = count_pro_asc + 1
                 sleep(1)
                 
         except Exception as e:
@@ -1850,7 +2483,7 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     
     
     
-    #=============  Satellite Correction =========================
+    #============= Satellite Correction =========================
     # 레이어 목록 혹은 파일 목록사용여부 라디오버튼
     def Select_radio_event(self):
         if self.rdo_Layer.isChecked():
@@ -1875,14 +2508,14 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         self.lisw_ASC.clear() #초기화
         self.lisw_ASC.setRowCount(0)
          
-        count=0
+        count = 0
         for row in (_layers):
 #             _util.MessageLogShowInfo("SAT_rdo1",str(row))
 #             counts = self.lisw_ASC.rowCount()
-            if (row.type()==QgsMapLayer.RasterLayer):
+            if (row.type() == QgsMapLayer.RasterLayer):
                 self.lisw_ASC.insertRow(count)
                 self.lisw_ASC.setItem(count, 0, QTableWidgetItem(row.name()))
-            count=count+1
+            count = count + 1
          
         # 테이블 데이터 수정 못하게 옵션
         self.lisw_ASC.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -1895,22 +2528,23 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 #         filter = "tif (*.tif)"
         self.lisw_ASC.setColumnCount(1)
         self.lisw_ASC.setHorizontalHeaderLabels(["ASC"])
-#         stylesheet = "QHeaderView::section{Background-color:rgb(174, 182, 255, 100)}"
+#         stylesheet = "QHeaderView::section{Background-color:rgb(174, 182,
+#         255, 100)}"
 #         self.lisw_ASC.setStyleSheet(stylesheet)
         
 #         self._ASC_filename=[]
-        count = 0 ; 
+        count = 0 
         #self.func_list=[]
         for layer in _layers:            
-            _util.MessageLogShowInfo("SAT_rdo1",str(layer.name()))
+#             _util.MessageLogShowInfo("SAT_rdo1",str(layer.name()))
 #             _util.MessageLogShowInfo("SAT_rdo1",str(layer.id()))
             #이 곳에서 리스트 목록에 올라가는 것은 Raster, TIFF 로 제한 둘 것.
-            if (layer.type()==QgsMapLayer.RasterLayer):
+            if (layer.type() == QgsMapLayer.RasterLayer):
                 self.lisw_ASC.insertRow(count)
                 self.lisw_ASC.setItem(count, 0, QTableWidgetItem(layer.name()))
                 self._ASC_filename.append(layer.dataProvider().dataSourceUri())
                 #self.func_list.append(layer.name())
-                count=count+1
+                count = count + 1
  
         # 테이블 데이터 수정 못하게 옵션
         self.lisw_ASC.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -1931,96 +2565,123 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 #             GPM._iface.addRasterLayer(fileName, baseName)
     
             
-    # 잠조할 SHP 파일 입력 받음.
-    def input_Ref_SHP(self):
-#         dir = os.path.dirname(sys.argv[0])
-        try:
-#             global select_SHP
-            self.select_SHP = QFileDialog.getOpenFileName(self, "Select Shape file",'c://', '*.shp *.SHP')[0]
-#             _util.MessageLogShowInfo("REF_SHP",self.select_SHP)
-            self.txt_inputSHP.setText(str(self.select_SHP))
-            
-        except Exception as e:
-            self.txt_inputSHP.setText("")
-            return
+    
     
 #     # 입력받은 SHP 파일의 QGIS MAP 좌표를 받아야 함.
 #     def Ref_SHP_getcoord(self,shape):
 #         try:
 #             #필드네임이 들어오긴 하는지 보는 것
-# #             QgsMessageLog.logMessage(str(txt.upper().decode("utf-8").encode("utf-8")),"GPM SHP") #OK
-#              
-#              
+# #
+# QgsMessageLog.logMessage(str(txt.upper().decode("utf-8").encode("utf-8")),"GPM
+# SHP") #OK
+#
+#
 #             Vlayer = QgsVectorLayer(select_SHP,"SHP","ogr")
 #             vlyrCRS=Vlayer.crs().authid()
 #             features = Vlayer.getFeatures()
 #             prov = Vlayer.dataProvider()
 #             _util.MessageLogShowInfo("GPM AreaCoord 2",str(Vlayer))
-#              
-#              
+#
+#
 #             global convert_crs
 #             convert_crs = []
 #             for raster in self._ASC_filename:
 #                 _util.MessageLogShowInfo("GPM AreaCoord 2",str(raster))
-# #                 QgsMessageLog.logMessage(str(raster),"GPM SHP for 1")
+# # QgsMessageLog.logMessage(str(raster),"GPM SHP for 1")
 #                 Rlyrcrs = QgsRasterLayer(raster).crs().authid()
 #                 crsSrc = QgsCoordinateReferenceSystem(vlyrCRS)
 #                 crsDest = QgsCoordinateReferenceSystem(Rlyrcrs)
-# #                 QgsMessageLog.logMessage("raster crs :  "+str(vlyrCRS)+" vector crs : "+str(Rlyrcrs),"GPM SHP")
+# # QgsMessageLog.logMessage("raster crs : "+str(vlyrCRS)+" vector crs :
+# "+str(Rlyrcrs),"GPM SHP")
 #                 xform = QgsCoordinateTransform(crsSrc, crsDest)
-# #                 QgsMessageLog.logMessage(str(xform),"GPM SHP")
-#                  
+# # QgsMessageLog.logMessage(str(xform),"GPM SHP")
+#
 #                 for feat in features:
-#                     feat2 = [(str(feat_item).upper()) for feat_item in feat.attributes()] #여기서 사용자가 이제 철자를 완전 동일하지 않아도 모두 대문자화 시킴
-# #                     QgsMessageLog.logMessage(str(feat2),"GPM SHP for")
-# #                     if (txt) in  (feat.attributes()):
+#                     feat2 = [(str(feat_item).upper()) for feat_item in
+#                     feat.attributes()] #여기서 사용자가 이제 철자를 완전 동일하지 않아도 모두 대문자화
+#                     시킴
+# # QgsMessageLog.logMessage(str(feat2),"GPM SHP for")
+# # if (txt) in (feat.attributes()):
 #                     if (txt.upper()) in feat2:
-# #                         QgsMessageLog.logMessage(str(txt.upper()),"GPM SHP")
+# # QgsMessageLog.logMessage(str(txt.upper()),"GPM SHP")
 #                         geom = feat.geometry()
 #                         convert_crs_coord = (xform.transform(geom.asPoint()))
 #                         convert_crs.append(str(convert_crs_coord))
 #                     else:
 #                         pass
-# #             QgsMessageLog.logMessage(str(len(convert_crs)),"GPM SHP")
-#                      
+# # QgsMessageLog.logMessage(str(len(convert_crs)),"GPM SHP")
+#
 #             return (convert_crs)
-#              
-#                          
+#
+#
 #         except Exception as e:
 #             _util.MessageLogShowInfo("GPM SHP",str(e))
-# #             QgsMessageLog.logMessage(str(e),"GPM SHP")
+# # QgsMessageLog.logMessage(str(e),"GPM SHP")
     
     #사용자가 ASC 파일경로를 다이얼 로그로 받아 오는 부분
     def Select_ASC_event(self):
         self.lisw_ASC.clear() #초기화
         # 2018-05-08:수정
-        # 리스트 초기화
+                                     # 리스트 초기화
         self.lisw_ASC.setRowCount(0)
-#         global _ASC_filename
         del self._ASC_filename[:]
 
-#         dir = os.path.dirname(sys.argv[0])
-        try:
             # 사용자가 선택한 파일 목록
-#             _ASC_filename = QFileDialog.getOpenFileNames(self,"Select Input ASC FILES",dir,"*.asc *.ASC ",options=QtGui.QFileDialog.DontUseNativeDialog)
+        if self.txt_Input_data.text() == "":
             self._ASC_filename = QFileDialog.getOpenFileNames(self,"Select Input ASC FILES",'c://',"*.asc *.ASC ")[0]
-#             _util.MessageLogShowInfo("SAT",str(_ASC_filename))
+        else:
+            self._ASC_filename = QFileDialog.getOpenFileNames(self,"Select Input ASC FILES",'',"*.asc *.ASC ")[0]
+        
+        if (self._ASC_filename == []):
+            self.txt_Input_data.setText("")
+            self.lisw_ASC.setHorizontalHeaderLabels(["ASC"])
+        else:
             #btnOpenDialog_Input에 선택한 파일들의 폴더 경로 넣기
             self.txt_Input_data.setText(os.path.dirname(self._ASC_filename[0]))
-            
+
             # 선택된 파일들을 리스트 박스에 넣기
             for row in (self._ASC_filename):
-#                 _util.MessageLogShowInfo("SAT",str(row))
                 counts = self.lisw_ASC.rowCount()
                 self.lisw_ASC.insertRow(counts)
                 self.lisw_ASC.setItem(counts, 0, QTableWidgetItem(os.path.basename(row)))
             
             # 테이블 데이터 수정 못하게 옵션
             self.lisw_ASC.setEditTriggers(QTableWidget.NoEditTriggers)
-#             _util.MessageboxShowInfo("Satellite", str(len(_ASC_filename))+" FILES SELECTED")
+
+
+
+
+    #사용자가 ASC 파일경로를 다이얼 로그로 받아 오는 부분
+    #2020-09-09 박: 기능 개발 그냥 있는거 가져다 씀
+    def Select_ASC_event_CM(self):
+        try: 
+            self.lisw_ASC_CM.clear() #초기화
+            self.lisw_ASC_CM.setRowCount(0)
+            del self._ASC_filename_CM[:]
+
+                # 사용자가 선택한 파일 목록
+            if self.txt_Input_data_CM.text() == "":
+                self._ASC_filename_CM = QFileDialog.getOpenFileNames(self,"Select Input TIF FILES",'c://',"*.tif *.TIF ")[0]
+            else:
+                self._ASC_filename_CM = QFileDialog.getOpenFileNames(self,"Select Input TIF FILES",'',"*.tif *.TIF ")[0]
+        
+            if (self._ASC_filename_CM == []):
+                self.txt_Input_data_CM.setText("")
+                self.lisw_ASC_CM.setHorizontalHeaderLabels(["TIF"])
+            else:
+                #btnOpenDialog_Input에 선택한 파일들의 폴더 경로 넣기
+                self.txt_Input_data_CM.setText(os.path.dirname(self._ASC_filename_CM[0]))
+                self.lisw_ASC_CM.setHorizontalHeaderLabels(["TIF"])
+                # 선택된 파일들을 리스트 박스에 넣기
+                for row in (self._ASC_filename_CM):
+                    counts = self.lisw_ASC_CM.rowCount()
+                    self.lisw_ASC_CM.insertRow(counts)
+                    self.lisw_ASC_CM.setItem(counts, 0, QTableWidgetItem(os.path.basename(row)))
+            
+                # 테이블 데이터 수정 못하게 옵션
+                self.lisw_ASC_CM.setEditTriggers(QTableWidget.NoEditTriggers)
         except Exception as e:
-            _util.MessageboxShowError("Satellite", " A file selection error occurred. ")
-            return
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter",str(e))
 
     # CSV 선택파일 다이얼로그
     def Select_CSV_event(self):
@@ -2030,10 +2691,14 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         
         try:
             # 파일은 하나만 선택하게 함.
-#             select_file = QFileDialog.getOpenFileName(self, "Select csv file.", dir, '*.csv *.CSV',options=QtGui.QFileDialog.DontUseNativeDialog)
+#             select_file = QFileDialog.getOpenFileName(self, "Select csv
+#             file.", dir, '*.csv
+#             *.CSV',options=QtGui.QFileDialog.DontUseNativeDialog)
             select_file = QFileDialog.getOpenFileName(self, "Select csv file.",'c://', '*.csv *.CSV')[0]
             #기존 2017버전으로 복귀
-#             select_file = QFileDialog.getOpenFileNames(self, "Select csv files.", dir, '*.csv *.CSV',options=QtGui.QFileDialog.DontUseNativeDialog)
+#             select_file = QFileDialog.getOpenFileNames(self, "Select csv
+#             files.", dir, '*.csv
+#             *.CSV',options=QtGui.QFileDialog.DontUseNativeDialog)
             select_file_path = os.path.dirname(select_file)
             self.txt_Convert_path.setText(str(select_file))
             # 선택한 csv 파일의 폴더경로를 받음
@@ -2052,7 +2717,8 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         
         self.lisw_Convert_file.setColumnCount(1)
         self.lisw_Convert_file.setHorizontalHeaderLabels(["CSV"])
-#         stylesheet = "QHeaderView::section{Background-color:rgb(174, 182, 255, 100)}"
+#         stylesheet = "QHeaderView::section{Background-color:rgb(174, 182,
+#         255, 100)}"
 #         self.lisw_Convert_file.setStyleSheet(stylesheet)
         
         try:
@@ -2061,18 +2727,19 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                 self.lisw_Convert_file.insertRow(counts)
                 self.lisw_Convert_file.setItem(counts, 0, QTableWidgetItem(os.path.basename(row)))
         except Exception as e:
-            _util.MessageboxShowError("GPM",str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter",str(e))
     
     # 입력받은 SHP 파일의 QGIS MAP 좌표를 받아야 함.
     def Ref_SHP_getcoord(self,txt):
         try:
             #필드네임이 들어오긴 하는지 보는 것
-#             QgsMessageLog.logMessage(str(txt.upper().decode("utf-8").encode("utf-8")),"GPM SHP") #OK
+#             QgsMessageLog.logMessage(str(txt.upper().decode("utf-8").encode("utf-8")),"GPM
+#             SHP") #OK
             
 #             _util.MessageLogShowInfo("GPM AreaCoord 2",str(txt))
 #             _util.MessageLogShowInfo("GPM AreaCoord 2",str(self.select_SHP))
             Vlayer = QgsVectorLayer(self.select_SHP,"SHP","ogr")
-            vlyrCRS=Vlayer.crs().authid()
+            vlyrCRS = Vlayer.crs().authid()
             features = Vlayer.getFeatures()
             prov = Vlayer.dataProvider()
             
@@ -2086,7 +2753,8 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                 Rlyrcrs = QgsRasterLayer(raster).crs().authid()
                 crsSrc = QgsCoordinateReferenceSystem(vlyrCRS)
                 crsDest = QgsCoordinateReferenceSystem(Rlyrcrs)
-#                 QgsMessageLog.logMessage("raster crs :  "+str(vlyrCRS)+" vector crs : "+str(Rlyrcrs),"GPM SHP")
+#                 QgsMessageLog.logMessage("raster crs : "+str(vlyrCRS)+"
+#                 vector crs : "+str(Rlyrcrs),"GPM SHP")
                 xform = QgsCoordinateTransform(crsSrc, crsDest,QgsProject.instance())
 #                 QgsMessageLog.logMessage(str(xform),"GPM SHP")
                 
@@ -2094,11 +2762,11 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 #                     _util.MessageLogShowInfo("GPM AreaCoord 2",str(feat))
                     feat2 = [(str(feat_item).upper()) for feat_item in feat.attributes()] #여기서 사용자가 이제 철자를 완전 동일하지 않아도 모두 대문자화 시킴
 #                     QgsMessageLog.logMessage(str(feat2),"GPM SHP for")
-#                     if (txt) in  (feat.attributes()):
+                                                                                         #                     if (txt) in (feat.attributes()):
                     if (txt.upper()) in feat2:
 #                         QgsMessageLog.logMessage(str(txt.upper()),"GPM SHP")
                         geom = feat.geometry()
-                        pt=(xform.transform(geom.asPoint()))
+                        pt = (xform.transform(geom.asPoint()))
                         
                         convert_crs_coord = (str(pt).split("(")[1].split(")")[0].replace(" ",","))
                         convert_crs.append(str(convert_crs_coord))
@@ -2113,6 +2781,39 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             _util.MessageLogShowInfo("GPM SHP",str(e))
 #             QgsMessageLog.logMessage(str(e),"GPM SHP")
         
+ # 입력받은 SHP 파일의 QGIS MAP 좌표를 받아야 함.
+    def Ref_SHP_getcoord_CM(self,txt):
+        try:
+            Vlayer = QgsVectorLayer(self.select_SHP,"SHP","ogr")
+            vlyrCRS = Vlayer.crs().authid()
+            features = Vlayer.getFeatures()
+            prov = Vlayer.dataProvider()
+            global convert_crs
+            convert_crs = []
+            for raster in self._ASC_filename_CM:
+                Rlyrcrs = QgsRasterLayer(raster).crs().authid()
+                crsSrc = QgsCoordinateReferenceSystem(vlyrCRS)
+                crsDest = QgsCoordinateReferenceSystem(Rlyrcrs)
+                xform = QgsCoordinateTransform(crsSrc, crsDest,QgsProject.instance())
+                
+                for feat in features:
+                    feat2 = [(str(feat_item).upper()) for feat_item in feat.attributes()] #여기서 사용자가 이제 철자를 완전 동일하지 않아도 모두 대문자화 시킴
+                    if (txt.upper()) in feat2:
+                        geom = feat.geometry()
+                        pt = (xform.transform(geom.asPoint()))
+                        
+                        convert_crs_coord = (str(pt).split("(")[1].split(")")[0].replace(" ",","))
+                        convert_crs.append(str(convert_crs_coord))
+                    else:
+                        pass
+
+            return (convert_crs)
+            
+                        
+        except Exception as e:
+            _util.MessageLogShowInfo("GPM SHP",str(e))
+#             QgsMessageLog.logMessage(str(e),"GPM SHP")
+
     # 변경 된 CSV 변환 이벤트로 적용 2018-10-31
     def Convert_CSV_time(self):
         #lisw_Convert_file 리스트 초기화
@@ -2121,89 +2822,50 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         self.lisw_Convert_file.setColumnCount(1)
         self.lisw_Convert_file.setHorizontalHeaderLabels(["ground data List"])
         try:
-            opencsv = open(select_file, 'r')
-#             _util.MessageLogShowInfo("GPM ConvertCSV",str(select_file))
+            opencsv = open(self.select_file, 'r')
             reader_csv = csv.reader(opencsv)
-#             _util.MessageLogShowInfo("GPM ConvertCSV",str(reader_csv))
-#             try:
             headercsv = opencsv.readline().encode('utf-8').decode()
-#             _util.MessageLogShowInfo("GPM ConvertCSV",str(headercsv))
-#             QgsMessageLog.logMessage("1 : " + str(headercsv),"GPM ConvertCSV")
-#             except: 
-#                 headercsv = opencsv.readline().decode('cp949').encode('utf-8') 
-                
-#             QgsMessageLog.logMessage(str(headercsv),"GPM SHP")
+
             # 헤더 지역별로 배열생성
             AreaName = headercsv.split(',')
-            
-            
             AreaCoord = []
             try:
                 for name in AreaName[1:]:
-#                     QgsMessageLog.logMessage(name,"GPM ConvertCSV")
-#                     QgsMessageLog.logMessage("2 : "+str(name),"GPM ConvertCSV") #ok
                     AreaCoord.append(self.Ref_SHP_getcoord(name.replace("\n","")))
-#                     _util.MessageLogShowInfo("GPM AreaCoord",str(name))
-#                     QgsMessageLog.logMessage(str(AreaName),"GPM Sate")
             except:
-#                 QgsMessageLog.logMessage("3: "+str("FIELDNAME ERROR"),"ConvertCSV ERR")
                 return "FIELDNAME ERROR"
-            
-#             QgsMessageLog.logMessage("2 : "+str(AreaCoord),"GPM ConvertCSV") 
-#             QgsMessageLog.logMessage(str(AreaCoord),"GPM AreaCoord")
-#             _util.MessageLogShowInfo("GPM AreaCoord",str(AreaCoord))
-                
+
             i = 1
-#             self._CSV_filename = []
-#             QgsMessageLog.logMessage(" 00 :  "+str(self._CSV_filename),"GPM ConvertCSV")
             del self._CSV_filename[:]
             
-#             value=""
-
             for row in (reader_csv):
-#                 _util.MessageLogShowInfo("GPM reader_csv","1")
-#                 _util.MessageLogShowInfo("GPM reader_csv",str(row))
-#                 QgsMessageLog.logMessage("4:  "+str(row),"GPM ConvertCSV")
                 getfile = _util.GetFilename(str(row[0]))
-                create_csv = open(select_file_path + "/{0}.csv".format(getfile), 'w+')
+                _util.MessageLogShowInfo("GPM_CSV_ERR",str(self.select_file_path))
+                create_csv = open(self.select_file_path + "/{0}.csv".format(getfile), 'w+')
                 self.CSV_filepath = []
-                self.CSV_filepath.append(select_file_path + "/{0}.csv".format(getfile))
-#                 QgsMessageLog.logMessage(" 5 :  "+str(self.CSV_filepath),"GPM ConvertCSV")
+                self.CSV_filepath.append(self.select_file_path + "/{0}.csv".format(getfile))
                 
                 counts = self.lisw_Convert_file.rowCount()
-#                 QgsMessageLog.logMessage(str(counts),"GPM Sate")
                 
                 self.lisw_Convert_file.insertRow(counts)
-                self.lisw_Convert_file.setItem(counts, 0, QTableWidgetItem(select_file_path + "/{0}.csv".format(getfile)))
+                self.lisw_Convert_file.setItem(counts, 0, QTableWidgetItem(self.select_file_path + "/{0}.csv".format(getfile)))
+                self._CSV_filename.append(self.select_file_path + "/{0}.csv".format(getfile))
                 
-#                 global _CSV_filename
-#                 QgsMessageLog.logMessage(" 6 :  "+str(self._CSV_filename),"GPM ConvertCSV")
-                self._CSV_filename.append(select_file_path + "/{0}.csv".format(getfile))
-#                 QgsMessageLog.logMessage(" 7 :  "+str(self._CSV_filename),"GPM ConvertCSV")
-                
-                
-                j=0
+             
+                j = 0
 
                 for cols in row[i:]:
-#                     _util.MessageLogShowInfo("GPM Sate",str(cols))
-#                     QgsMessageLog.logMessage(str(cols),"GPM Sate")
-#                     QgsMessageLog.logMessage(" 8 :  "+str(cols.strip()),"ConvertCSV")
-                    #여기서... 값이 없는 것은 제외하고 출력함
-                    if cols.strip() !="":
+                    #여기서...  값이 없는 것은 제외하고 출력함
+                    if cols.strip() != "":
                         if (AreaCoord[j]) != []:
-#                             QgsMessageLog.logMessage(" 9 :  "+str(AreaCoord[j]),"ConvertCSV")
                             value = str(AreaCoord[j]).replace("['","").replace("']","") + "," + cols.strip() + "\n"
-#                             QgsMessageLog.logMessage(str(value),"GPM Sate")
-#                             QgsMessageLog.logMessage(" 10 :  "+str(value),"GPM ConvertCSV")
-#                         QgsMessageLog.logMessage(str(value),"GPM CSV")
                             create_csv.write(str(value))
-                    j= j+1
+                    j = j + 1
                        
             create_csv.close()
             opencsv.close()
             
             _util.MessageboxShowInfo("Info", "Complete convert file")
-#             QgsMessageLog.logMessage(str(_CSV_filename),"GPM CSV") #OK 리스트 확인
             # txt_Convert_path 텍스트 값 초기화
             self.txt_Convert_path.clear()        
                 
@@ -2211,21 +2873,86 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         except Exception as e:
             _util.MessageLogShowInfo("GPM ConvertCSV",str(e))
             _util.MessageboxShowError("GPM CSV ERR", str(e))
-# #             AreaCoord.append(_coord.coordinate_dict(i.replace("\n","")))
         
 
+
+    # 변경 된 CSV 변환 이벤트로 적용 2018-10-31
+    #2020-09-09 박: 기능 있는거 그냥 사용
+    def Convert_CSV_time_CM(self):
+        #lisw_Convert_file 리스트 초기화
+        self.lisw_Convert_file_CM.setRowCount(0)
+        
+        self.lisw_Convert_file_CM.setColumnCount(1)
+        self.lisw_Convert_file_CM.setHorizontalHeaderLabels(["ground data List"])
+        try:
+            opencsv = open(self.select_file, 'r')
+            reader_csv = csv.reader(opencsv)
+            headercsv = opencsv.readline().encode('utf-8').decode()
+
+            # 헤더 지역별로 배열생성
+            AreaName = headercsv.split(',')
+            AreaCoord = []
+            try:
+                for name in AreaName[1:]:
+                    AreaCoord.append(self.Ref_SHP_getcoord_CM(name.replace("\n","")))
+            except:
+                return "FIELDNAME ERROR"
+
+            i = 1
+            del self._CSV_filename_CM[:]
+            
+            for row in (reader_csv):
+                getfile = _util.GetFilename(str(row[0]))
+                _util.MessageLogShowInfo("GPM_CSV_ERR",str(self.select_file_path))
+                create_csv = open(self.select_file_path + "/{0}.csv".format(getfile), 'w+')
+                self.CSV_filepath_CM = []
+                self.CSV_filepath_CM.append(self.select_file_path + "/{0}.csv".format(getfile))
+                
+                counts = self.lisw_Convert_file_CM.rowCount()
+                
+                self.lisw_Convert_file_CM.insertRow(counts)
+                self.lisw_Convert_file_CM.setItem(counts, 0, QTableWidgetItem(self.select_file_path + "/{0}.csv".format(getfile)))
+                self._CSV_filename_CM.append(self.select_file_path + "/{0}.csv".format(getfile))
+                
+             
+                j = 0
+
+                for cols in row[i:]:
+                    #여기서...  값이 없는 것은 제외하고 출력함
+                    if cols.strip() != "":
+                        if (AreaCoord[j]) != []:
+                            value = str(AreaCoord[j]).replace("['","").replace("']","") + "," + cols.strip() + "\n"
+                            create_csv.write(str(value))
+                    j = j + 1
+                       
+            create_csv.close()
+            opencsv.close()
+            
+            _util.MessageboxShowInfo("Info", "Complete convert file")
+            # txt_Convert_path 텍스트 값 초기화
+            self.txt_Convert_path.clear()        
+                
+            
+        except Exception as e:
+            _util.MessageLogShowInfo("GPM ConvertCSV",str(e))
+            _util.MessageboxShowError("GPM CSV ERR", str(e))
+
+
+
     
-    #기존의 기능으로 원복(이름으로 매칭... 일단 이 방법)
+    
+    #기존의 기능으로 원복(이름으로 매칭...  일단 이 방법)
     def Apply_all_correction(self):
 #         if len(_ASC_filename) != len(select_file):
         # 위성 격자와 지상 관측 데이터의 수가 일치해야 함.
         if len(self._ASC_filename) != len(self._CSV_filename):
             _util.MessageboxShowInfo("GPM NOTICE", "Number of CSV FILES and ASC FILES do not match.")
-#             QgsMessageLog.logMessage("Number of CSV FILES and ASC FILES do not match.","GPM NOTICE")
+#             QgsMessageLog.logMessage("Number of CSV FILES and ASC FILES do
+#             not match.","GPM NOTICE")
             return
         
         # 보정 결과가 출력될 폴더 경로를 지정해야 함.
-        if self.txtOutputDataPath.text().strip()=="":
+        if self.txtOutputDataPath.text().strip() == "":
             _util.MessageboxShowInfo("GPM NOTICE", " NOT set Output Path.")
             return
         
@@ -2236,12 +2963,20 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 #             self.satellite_progressBar.setValue(0)
 #             self.satellite_progressBar.setMaximum(len(self._ASC_filename))
             self.decimalChanged()
-#             run_correction = _corr.run_correction(output_folder, _ASC_filename, select_file, _decimal)
-#             run_correction = _corr.run_correction(output_folder, _ASC_filename, _CSV_filename, _decimal)
-#             QgsMessageLog.logMessage("decimal : " + str(_decimal) + " \n" + str(_ASC_filename)+"\n"+str(self._CSV_filename)+"\n"+self.txtOutputDataPath.text()+"\n","GPM APPLY ALL")
+#             run_correction = _corr.run_correction(output_folder,
+#             _ASC_filename, select_file, _decimal)
+#             run_correction = _corr.run_correction(output_folder,
+#             _ASC_filename, _CSV_filename, _decimal)
+#             QgsMessageLog.logMessage("decimal : " + str(_decimal) + " \n" +
+#             str(_ASC_filename)+"\n"+str(self._CSV_filename)+"\n"+self.txtOutputDataPath.text()+"\n","GPM
+#             APPLY ALL")
             
-            _util.MessageLogShowInfo("SAT RESULT","{0}\n{1}\n{2}\n{3}".format(output_folder, self._ASC_filename, self._CSV_filename, _decimal))
-#             _util.MessageLogShowInfo("SAT RESULT",str(self.txtOutputDataPath.text() + "/" + (os.path.split(os.path.splitext(self._ASC_filename[count])[0])[1])+("_satellite_correction.asc")))
+            #_util.MessageLogShowInfo("SAT
+            #RESULT","{0}\n{1}\n{2}\n{3}".format(output_folder,
+            #self._ASC_filename, self._CSV_filename, _decimal))
+#             _util.MessageLogShowInfo("SAT
+#             RESULT",str(self.txtOutputDataPath.text() + "/" +
+#             (os.path.split(os.path.splitext(self._ASC_filename[count])[0])[1])+("_satellite_correction.asc")))
             #연세대 보정 알고리즘 코드로 진입
             run_correction = _corr.run_correction(self.txtOutputDataPath.text(), (self._ASC_filename), (self._CSV_filename), _decimal)
             _util.MessageLogShowInfo("SAT_RESULT","{0}".format(str(run_correction)))
@@ -2250,55 +2985,64 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             
             if ("Error" in str(run_correction)):
                 _util.MessageLogShowInfo("SAT_RESULT","error")
-                _util.MessageboxShowInfo("GPM","ERROR : \n"+str(run_correction))
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","ERROR : \n" + str(run_correction))
                 
             else:
             
                 #보정 시 측정 시간
-#                 QgsMessageLog.logMessage("corr 1 : "+"%s"%(time.time()-start_time_GPM),"GPM Satellite")
+#                 QgsMessageLog.logMessage("corr 1 :
+#                 "+"%s"%(time.time()-start_time_GPM),"GPM Satellite")
                 #메시지 박스 외 Qgs 패널에서 확인 가능
     #             QgsMessageLog.logMessage(str(run_correction),"GPM sate")
                 
-                #보정 처리된 위성 격자에 prj 파일을 복사해옴.(위성격자 원본 데이터와 같은 좌표계)            
-                dirpath= os.path.split(self._ASC_filename[0])[0]
+                #보정 처리된 위성 격자에 prj 파일을 복사해옴.(위성격자 원본 데이터와 같은 좌표계)
+                dirpath = os.path.split(self._ASC_filename[0])[0]
                 _util.MessageLogShowInfo("SAT RESULT",str(dirpath))
                 self.Find_ASC_CRS(dirpath)
     #             for count in range(len(select_file)):
-                count=0
+                count = 0
                 for count in range(len(self._CSV_filename)):
                     if self.chk_AddLayer.isChecked():
-    #                     QgsMessageLog.logMessage(self.txtOutputDataPath.text() + "/" + (os.path.split(os.path.splitext(_ASC_filename[count])[0])[1])+
-    #                                              ("_satellite_correction.asc"),"GPM _CSVFILENAME")
-                        self.Addlayer_OutputFile(
-                            self.txtOutputDataPath.text() + "/" + (os.path.split(os.path.splitext(self._ASC_filename[count])[0])[1])+("_satellite_correction.asc"))
-                        _util.MessageLogShowInfo("SAT RESULT",str(self.txtOutputDataPath.text() + "/" + (os.path.split(os.path.splitext(self._ASC_filename[count])[0])[1])+("_satellite_correction.asc")))
+    #                     QgsMessageLog.logMessage(self.txtOutputDataPath.text()
+    #                     + "/" +
+    #                     (os.path.split(os.path.splitext(_ASC_filename[count])[0])[1])+
+    #                                              ("_satellite_correction.asc"),"GPM
+    #                                              _CSVFILENAME")
+                        self.Addlayer_OutputFile(self.txtOutputDataPath.text() + "/" + (os.path.split(os.path.splitext(self._ASC_filename[count])[0])[1]) + ("_satellite_correction.asc"))
+                        _util.MessageLogShowInfo("SAT RESULT",str(self.txtOutputDataPath.text() + "/" + (os.path.split(os.path.splitext(self._ASC_filename[count])[0])[1]) + ("_satellite_correction.asc")))
                         
-    #                             os.path.basename(_CSV_filename[count]).split(".")[0]) + ".asc")
-    #                         output_folder + "\\" + (os.path.basename(_ASC_filename[count]).split(".")[0]) + "_" + (
-    #                             os.path.basename(select_file[count]).split(".")[0]) + ".asc")
+    #                             os.path.basename(_CSV_filename[count]).split(".")[0])
+    #                             + ".asc")
+    #                         output_folder + "\\" +
+    #                         (os.path.basename(_ASC_filename[count]).split(".")[0])
+    #                         + "_" + (
+    #                             os.path.basename(select_file[count]).split(".")[0])
+    #                             + ".asc")
                     self.satellite_progressBar.setValue(count)
                     count = count + 1
-                QgsMessageLog.logMessage("QGIS LOAD: "+"%s"%(time.time()-start_time_GPM),"GPM Satellite")
+                QgsMessageLog.logMessage("QGIS LOAD: " + "%s" % (time.time() - start_time_GPM),"GPM Satellite")
                 #prj 파일 복사 넣기
                 
     #             QgsMessageLog.logMessage(str(count),"GPM _CSV COUNT")
                 #그럼 여기서 새로 리스트 만들어서 넣음..
                 self.Tree_Result.clear()
                 self.Tree_Result.setHeaderLabels(["Apply List"])
-                i=0
+                i = 0
                 for ASC in range(len(self._ASC_filename)):
                     root = QTreeWidgetItem(self.Tree_Result,[self._ASC_filename[ASC]])
                     value = self._ASC_filename[i]
                     SS = QTreeWidgetItem(root,[value.replace(".asc","_satellite_correction.asc")])
                     ascFileName = _util.GetFilename(value)
-    #                 new_path = self.txtOutputDataPath.text()+"/"+str(ascFileName)+".png"
+    #                 new_path =
+    #                 self.txtOutputDataPath.text()+"/"+str(ascFileName)+".png"
     #                 QgsMessageLog.logMessage(str(new_path),"GPM SATE_PNG")
                     
                     
     #                 # png 만들기
                     if self.chk_makePng.isChecked():
-                        new_path = self.txtOutputDataPath.text()+"/"+str(ascFileName)+"_satellite_correction.png"
-    #                     QgsMessageLog.logMessage(str(new_path),"GPM SATE_PNG")
+                        new_path = self.txtOutputDataPath.text() + "/" + str(ascFileName) + "_satellite_correction.png"
+    #                     QgsMessageLog.logMessage(str(new_path),"GPM
+    #                     SATE_PNG")
                         SS = QTreeWidgetItem(root,[new_path])
                         self._PNG_filename.append(new_path)
                         png_path = new_path
@@ -2306,12 +3050,12 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                         self.make_png(self._ASC_filename[ASC], png_path)
                         
 #                     self.satellite_progressBar.setValue(count+i)
-                    i=i+1
-                QgsMessageLog.logMessage("Make PNG : "+"%s"%(time.time()-start_time_GPM),"GPM Satellite")
+                    i = i + 1
+                QgsMessageLog.logMessage("Make PNG : " + "%s" % (time.time() - start_time_GPM),"GPM Satellite")
     #             QgsMessageLog.logMessage(str(i),"GPM _asc COUNT")
                 
                 #기능이 모두 끝나면 메시지 알림
-                _util.MessageboxShowInfo("GPM",str(run_correction))
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter",str(run_correction))
 
                 
 
@@ -2322,7 +3066,7 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     #입력한 ASC의 prj 파일으르 복사해서 주려고 함.
     def Find_ASC_CRS(self,dirpath):
         #입력된 asc 파일의 목록을 읽고 해당 파일의 파일명과 일치하는 prj를 결과폴더로 이동
-        find_prj_list =[]
+        find_prj_list = []
         for (path, dir, files) in os.walk(dirpath):
             for filename in files:
                 ext = os.path.splitext(filename)[-1]
@@ -2333,8 +3077,8 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         for prj in find_prj_list:
             fileprj = os.path.split(prj)[1]
             for aaa in self._ASC_filename:
-                if os.path.splitext(fileprj)[0] ==os.path.split(os.path.splitext(aaa)[0])[1]:
-                    shutil.copy(prj,self.txtOutputDataPath.text()+"/"+(fileprj).replace(".prj","_satellite_correction.prj"))
+                if os.path.splitext(fileprj)[0] == os.path.split(os.path.splitext(aaa)[0])[1]:
+                    shutil.copy(prj,self.txtOutputDataPath.text() + "/" + (fileprj).replace(".prj","_satellite_correction.prj"))
         
         
         
@@ -2343,36 +3087,47 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 #     # 모든 리스트가 적용 되었을때 파일 목록으로 정
 #     def Apply_AllList_event(self):
 #         global _decimal
-#         
+#
 #         # CSV 파일과 ASC 파일의 갯수가 같지 않으면 오류 메시지 출력
 #         if len(self._CSV_filename)!= len(self._ASC_filename):
-#             QgsMessageLog.logMessage("Number of CSV FILES and ASC FILES do not match.","GPM NOTICE")
+#             QgsMessageLog.logMessage("Number of CSV FILES and ASC FILES do
+#             not match.","GPM NOTICE")
 #             return
-#         
+#
 #         try:
 #             self.decimalChanged()
-#             _util.MessageLogShowInfo("SAT RESULT","{0}\n{1}\n{2}\n{3}".format(output_folder, self._ASC_filename, 
-#                                                                               self._CSV_filename, _decimal))
-#             run_correction = _corr.run_correction(output_folder, self._ASC_filename, self._CSV_filename, _decimal)
-#             _util.MessageLogShowInfo("SAT RESULT 2","{0}".format(run_correction))
-#             
+#             _util.MessageLogShowInfo("SAT
+#             RESULT","{0}\n{1}\n{2}\n{3}".format(output_folder,
+#             self._ASC_filename,
+#                                                                               self._CSV_filename,
+#                                                                               _decimal))
+#             run_correction = _corr.run_correction(output_folder,
+#             self._ASC_filename, self._CSV_filename, _decimal)
+#             _util.MessageLogShowInfo("SAT RESULT
+#             2","{0}".format(run_correction))
+#
 #             for count in range(len(self._CSV_filename)):
 #                 if self.chk_AddLayer.isChecked():
 #                     self.Addlayer_OutputFile(
-#                         output_folder + "\\" + (os.path.basename(self._ASC_filename[count]).split(".")[0]) + "_" + (
-#                             os.path.basename(self._CSV_filename[count]).split(".")[0]) + ".asc")
+#                         output_folder + "\\" +
+#                         (os.path.basename(self._ASC_filename[count]).split(".")[0])
+#                         + "_" + (
+#                             os.path.basename(self._CSV_filename[count]).split(".")[0])
+#                             + ".asc")
 #                 count = count + 1
-# #             _util.MessageboxShowInfo("Process Information","performed {0} files. \n{1}".format(len(_ASC_filename), str(run_correction)))
-# 
-# #             # 진행률 바가 100%가 되면 자동으로 메세지 바 삭제
-# #             GPM._iface.messageBar().clearWidgets()
-# 
+# # _util.MessageboxShowInfo("Process Information","performed {0} files.
+# \n{1}".format(len(_ASC_filename), str(run_correction)))
+#
+# # # 진행률 바가 100%가 되면 자동으로 메세지 바 삭제
+# # GPM._iface.messageBar().clearWidgets()
+#
 #             #그럼 여기서 새로 리스트 만들어서 넣음..
 #             self.Tree_Result.clear()
 #             self.Tree_Result.setHeaderLabels(["Apply List"])
 #             i=0
 #             for ASC in range(len(self._ASC_filename)):
-#                 root = QTreeWidgetItem(self.Tree_Result,[self._ASC_filename[ASC]])
+#                 root =
+#                 QTreeWidgetItem(self.Tree_Result,[self._ASC_filename[ASC]])
 #                 value = self._CSV_filename[i]
 #                 SS = QTreeWidgetItem(root,[value])
 #                 if self.chk_makePng.isChecked():
@@ -2382,26 +3137,29 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 #                     # 이미지 생성
 #                     self.make_png(self._ASC_filename[ASC],png_path)
 #                 i=i+1
-# 
+#
 #         except Exception as es:
 #             QMessageBox.information(None, "error", str(es))
    
-    #output 경로 받기
-    def Output_path_Dialog(self):
-         global output_folder
-         output_folder=""
-         #output_path = select_file_path
-#          output_path = os.path.dirname(sys.argv[0])
-         #asc 선택과 달리 폴더 지정
-         output_folder =(QFileDialog.getExistingDirectory(self,"Select Output Directory","c://"))
-         
-         #선택 폴더가 있다면
-         if output_folder !="":
-            output_folder = output_folder.replace("\\","/")
-            self.txtOutputDataPath.setText(output_folder)
-         #선택 폴더가 없다면
-         else:
-             self.txtOutputDataPath.setText("")
+#     #output 경로 받기
+#    NOT USED
+#     def Output_path_Dialog(self):
+#          #output_path = select_file_path
+# # output_path = os.path.dirname(sys.argv[0])
+#          #asc 선택과 달리 폴더 지정
+#          if (self.txtOutputDataPath.text() ==""):
+#              output_folder =(QFileDialog.getExistingDirectory(self,"Select
+#              Output Directory","c://"))
+#          else:
+#              output_folder =(QFileDialog.getExistingDirectory(self,"Select
+#              Output Directory",""))
+#              #선택 폴더가 있다면
+#              if output_folder !="":
+#                 output_folder = output_folder.replace("\\","/")
+#                 self.txtOutputDataPath.setText(output_folder)
+#              #선택 폴더가 없다면
+#              else:
+#                  self.txtOutputDataPath.setText("")
     
     
     def decimalChanged(self):
@@ -2409,50 +3167,23 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         _decimal = self.decimalBox.value()
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    #=============  Make image  =========================
+    #============= Make image =========================
     def make_png(self, asc_path, png_path):
-        color_path = os.path.dirname(os.path.realpath(__file__)) + "/Color/color.txt"
+        #color_path = os.path.dirname(os.path.realpath(__file__)) +
+        #"/Color/color.txt"
+        #color_path = os.path.dirname(os.path.realpath(__file__)) +
+        #"/Color/color2.txt"
+        color_path = self.Color_text_path_png
         _util.mk_folder(str(os.path.dirname(png_path)))
-#         mycall = "gdaldem.exe color-relief " + asc_path + " " + color_path + " " + png_path
-        mycall = "gdaldem.exe color-relief {0} {1} {2}".format(asc_path,color_path,png_path)
-        _util.MessageLogShowInfo("IMG",str(mycall))
+#         mycall = "gdaldem.exe color-relief " + asc_path + " " + color_path +
+#         " " + png_path
+#         try:
+        mycall = 'gdaldem.exe color-relief "{0}" "{1}" "{2}" -alpha'.format(asc_path,color_path,png_path)
+        callvalue = sub.call(mycall,shell=True)
+#         except Exception as exc:
+#             _util.MessageboxShowInfo("Notice", "Not
+#             completed.\n{0}".format(str(exc)))
+#         _util.MessageLogShowInfo("IMG",str(mycall))
         # v0.0.14 수정해보았음.
 #         mycall =[osgeo4w,
 #                  "gdaldem.exe",
@@ -2460,30 +3191,32 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
 #                  asc_path,
 #                  color_path,
 #                  png_path]
-        callvalue = sub.call(mycall,shell=True)
-        if callvalue != 0:
-            _util.MessageboxShowInfo("Notice", "Not completed.")
+#
+        _util.MessageLogShowInfo("IMG",str(callvalue))
+        #if callvalue != 0:
+        #    _util.MessageboxShowInfo("Notice", "Not completed.")
     
-    #버튼 눌러서 shp 다른 걸 불러오게 하는 거... 아 그냥 우리 기본 설정하게 해놓고 알아서 하라고 하면 안되띾요 귀찮은데
+    #버튼 눌러서 shp 다른 걸 불러오게 하는 거...  아 그냥 우리 기본 설정하게 해놓고 알아서 하라고 하면 안되띾요 귀찮은데
     def btn_baseShp_change(self):
-        self.shp_layer=""
+        self.shp_layer = ""
 #         dir = os.path.dirname(sys.argv[0])
         global select_SHP
 
         try:
             self.shp_layer = QFileDialog.getOpenFileName(self, "Select Shape file", "c://", '*.shp *.SHP')
             #파일을 선택했다면~
-            if self.shp_layer !="":
+            if self.shp_layer != "":
                 self.txt_pngshp.setText(self.shp_layer)
                 base_shp = QgsVectorLayer(self.shp_layer,(os.path.basename(self.shp_layer)).split(".shp")[0],"ogr")
-    #         QgsMapLayerRegistry.instance().addMapLayers([self.layer, base_map], False)
+    #         QgsMapLayerRegistry.instance().addMapLayers([self.layer,
+    #         base_map], False)
 #                 self.gpm_canvas.instance().addMapLayer(base_shp, False)
                 self.gpm_canvas.setLayers([base_shp])
                 self.gpm_canvas.setExtent(base_shp.extent())
                 self.gpm_canvas.setLayerSet([(base_shp)])
             #파일 선택을 안해서 여전히 빈 값이면~
             else:
-                _util.MessageboxShowInfo("GPM","No selected shape file.")
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","No selected shape file.")
                 return
              
         except Exception as e:
@@ -2493,12 +3226,16 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
     
     
     
-    # 1. polgin(유역도) shape file 선택 함수 
+    # 1.  polgin(유역도) shape file 선택 함수
     def btn_baseShp_polygon(self):
         self.shp_layer_polygon = ""
 
         try:
-            self.shp_layer_polygon = QFileDialog.getOpenFileName(self, "Select Shape file", "c:\\", '*.shp *.SHP')[0]
+            if (self.txt_pngshp_polygon.text() == ""):
+                self.shp_layer_polygon = QFileDialog.getOpenFileName(self, "Select Shape file", "c:\\", '*.shp *.SHP')[0]
+            else:
+                self.shp_layer_polygon = QFileDialog.getOpenFileName(self, "Select Shape file", "", '*.shp *.SHP')[0]
+                
             # 파일을 선택했다면~
             if self.shp_layer_polygon != "":
                 self.txt_pngshp_polygon.setText(self.shp_layer_polygon)
@@ -2517,12 +3254,15 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             self.txt_pngshp_polygon.setText("")
             return
         
-    # 2. line(하천망도) shape file 선택 함수
+    # 2.  line(하천망도) shape file 선택 함수
     def btn_baseShp_line(self):
         self.shp_layer_line = ""
 
         try:
-            self.shp_layer_line = QFileDialog.getOpenFileName(self, "Select Shape file", "c:\\", '*.shp *.SHP')[0]
+            if (self.txt_pngshp_line.text() == ""):
+                self.shp_layer_line = QFileDialog.getOpenFileName(self, "Select Shape file", "c:\\", '*.shp *.SHP')[0]
+            else:
+                self.shp_layer_line = QFileDialog.getOpenFileName(self, "Select Shape file", "", '*.shp *.SHP')[0]
             # 파일을 선택했다면~
             if self.shp_layer_line != "":
                 self.txt_pngshp_line.setText(str(self.shp_layer_line))
@@ -2540,18 +3280,22 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             self.txt_pngshp_line.setText("")
             return
     
-    # 3. point(관측소 위치) shape file 선택 함수
+    # 3.  point(관측소 위치) shape file 선택 함수
     def btn_baseShp_point(self):
         self.shp_layer_point = ""
 #         dir = os.path.dirname(sys.argv[0])
 
         try:
-            self.shp_layer_point = QFileDialog.getOpenFileName(self, "Select Shape file", "c:\\", '*.shp *.SHP')[0]
+            if (self.txt_pngshp_point.text() == ""):
+                self.shp_layer_point = QFileDialog.getOpenFileName(self, "Select Shape file", "c:\\", '*.shp *.SHP')[0]
+            else:
+                self.shp_layer_point = QFileDialog.getOpenFileName(self, "Select Shape file", "", '*.shp *.SHP')[0]
             # 파일을 선택했다면~
             if self.shp_layer_point != "":
                 self.txt_pngshp_point.setText(self.shp_layer_point)
                 basePoint = QgsVectorLayer(self.shp_layer_point, ((os.path.basename(self.shp_layer_point)).split(".shp")[0]), "ogr")
-    #         QgsMapLayerRegistry.instance().addMapLayers([self.layer, base_map], False)
+    #         QgsMapLayerRegistry.instance().addMapLayers([self.layer,
+    #         base_map], False)
 #                 self.gpm_canvas.setLayers([basePoint])
 #                 self.gpm_canvas.zoomToFullExtent()
             # 파일 선택을 안해서 여전히 빈 값이면~
@@ -2563,19 +3307,106 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         except Exception as e:
             self.txt_pngshp_point.setText("")
             return     
-
+    
+    
+    #color picker - polygon
+    def changeColor_Picker_polygon(self):
+        color = QColorDialog.getColor(title="color box",options=QColorDialog.ShowAlphaChannel)
+        self.changeLabel = "change"
+        if color.isValid():
+#             print(color.red(), color.green(),color.blue(),color.alpha())
+            self.red = color.red()
+            self.green = color.green()
+            self.blue = color.blue()
+            self.alpha = color.alpha() #투명도
+            colorName = color.name()
+            self.btn_changecolor_po.setStyleSheet("background-color:{0};".format(colorName))
+            
+        else:
+#             print(color.red(), color.green(),color.blue(),color.alpha())
+#             #0,0,0,255
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Defalut RGBA Value : 94,94,94,255")
+            #self.red = color.red()
+            #self.green=color.green()
+            #self.blue=color.blue()
+            #self.alpha=color.alpha()
+     
+            self.red = 94
+            self.green = 94
+            self.blue = 94
+            self.alpha = 255
+            #colorName=color.name()
+            #background-color: rgb(94, 94, 94);
+            self.btn_changecolor_po.setStyleSheet("background-color: rgb(94, 94, 94);")
+            
+    #color picker - line
+    def changeColor_Picker_line(self):
+        color = QColorDialog.getColor(title="color box",options=QColorDialog.ShowAlphaChannel)
+        self.changeLabel_pl = "change"
+        if color.isValid():
+#             print(color.red(), color.green(),color.blue(),color.alpha())
+            self.red_pl = color.red()
+            self.green_pl = color.green()
+            self.blue_pl = color.blue()
+            self.alpha_pl = color.alpha() #투명도
+            colorName = color.name()
+            self.btn_changecolor_pl.setStyleSheet("background-color:{0};".format(colorName))
+            
+        else:
+#             print(color.red(), color.green(),color.blue(),color.alpha())
+#             #0,0,0,255
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Defalut RGBA Value : 0,0,0,255")
+            self.red_pl = 0
+            self.green_pl = 0
+            self.blue_pl = 240
+            self.alpha_pl = 255
+            #colorName=color.name()
+            #self.btn_changecolor_pl.setStyleSheet("background-color:{0};".format(colorName));
+            self.btn_changecolor_pl.setStyleSheet("background-color: rgb(0, 0, 240);")
+    
+    #color picker - point
+    def changeColor_Picker_point(self):
+        color = QColorDialog.getColor(title="color box",options=QColorDialog.ShowAlphaChannel)
+        self.changeLabel_po = "change"
+        if color.isValid():
+#             print(color.red(), color.green(),color.blue(),color.alpha())
+            self.red_point = color.red()
+            self.green_point = color.green()
+            self.blue_point = color.blue()
+            self.alpha_point = color.alpha() #투명도
+            colorName = color.name()
+            self.btn_changecolor_point.setStyleSheet("background-color:{0};".format(colorName))
+            
+        else:
+#             print(color.red(), color.green(),color.blue(),color.alpha())
+#             #0,0,0,255
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Defalut RGBA Value : 0,0,0,255")
+            self.red_point = 255
+            self.green_point = 0
+            self.blue_point = 0
+            self.alpha_point = 255 #투명도
+            #colorName=color.name()
+            self.btn_changecolor_point.setStyleSheet("background-color: rgb(255,0,0);")
+            
+            
+    
     #polygon outline color 변경
     def changeColor_polygon(self,polygon):
         # RFP 내용
         # 벡터 레이어 스타일 사용자 변경 적용 기능
         symbols = polygon.renderer().symbol() #Qgis3 api로 변견
-        props= (symbols.symbolLayer(0).properties())
+        props = (symbols.symbolLayer(0).properties())
         
 #         props['color'] ="145,82,45,255" #채우기 갈색
-        if self.txt_red_p.text() != "":
+#         if self.txt_red_p.text() != "":
 #             props['color'] ="255,255,255,0" #채우기 투명
-            props['color'] ='{0},{1},{2},255'.format(int(self.txt_red_p.text()),int(self.txt_blue_p.text()),int(self.txt_green_p.text()))
-#             props['outline_color'] = '{0},{1},{2},255'.format(int(self.txt_red_p.text()),int(self.txt_blue_p.text()),int(self.txt_green_p.text()))
+        if self.changeLabel == "change":
+            props['color'] = '{0},{1},{2},{3}'.format(self.red,self.green,self.blue,self.alpha)
+            _util.MessageLogShowInfo("color picker polygon",'{0},{1},{2},{3}'.format(self.red,self.green,self.blue,self.alpha))
+        else:
+             props['color'] = '{0},{1},{2},{3}'.format(94,94,94,255)
+#             props['outline_color'] =
+#             '{0},{1},{2},255'.format(int(self.txt_red_p.text()),int(self.txt_blue_p.text()),int(self.txt_green_p.text()))
         polygon.renderer().setSymbol(QgsFillSymbol.createSimple(props))
         polygon.triggerRepaint()
         
@@ -2584,10 +3415,18 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         # RFP 내용
         # 벡터 레이어 스타일 사용자 변경 적용 기능
         symbols = polyline.renderer().symbol() #Qgis3 api로 변견
-        props= (symbols.symbolLayer(0).properties())
+        props = (symbols.symbolLayer(0).properties())
 #         props['color'] ="255,255,255,0" #채우기 투명
-        if self.txt_red_pl.text() != "":
-            props['line_color'] = '{0},{1},{2},255'.format(int(self.txt_red_pl.text()),int(self.txt_blue_pl.text()),int(self.txt_green_pl.text()))
+#         if self.txt_red_pl.text() != "":
+#             props['line_color'] =
+#             '{0},{1},{2},255'.format(int(self.txt_red_pl.text()),int(self.txt_blue_pl.text()),int(self.txt_green_pl.text()))
+        if self.changeLabel_pl == "change":
+            props['line_color'] = '{0},{1},{2},{3}'.format(self.red_pl,self.green_pl,self.blue_pl,self.alpha_pl)
+            _util.MessageLogShowInfo("color picker line",'{0},{1},{2},{3}'.format(self.red_pl,self.green_pl,self.blue_pl,self.alpha_pl))
+        else :
+            props['line_color'] = '{0},{1},{2},{3}'.format(0,0,240,255)
+
+            
         polyline.renderer().setSymbol(QgsLineSymbol.createSimple(props))
         polyline.triggerRepaint()
     
@@ -2596,40 +3435,53 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         # RFP 내용
         # 벡터 레이어 스타일 사용자 변경 적용 기능
         symbols = point.renderer().symbol() #Qgis3 api로 변견
-        props= (symbols.symbolLayer(0).properties())
+        props = (symbols.symbolLayer(0).properties())
 #         if self.txt_red_po.text() != "":
         if self.cmb_symbol.currentText() != "Select_Symbol":
-            props['name'] =self.cmb_symbol.currentText()
-#             props['color'] ='{0},{1},{2},255'.format(int(self.txt_red_po.text()),int(self.txt_blue_po.text()),int(self.txt_green_po.text()))
-#             props['outline_color'] = '{0},{1},{2},255'.format(int(self.txt_red_po.text()),int(self.txt_blue_po.text()),int(self.txt_green_po.text()))
+            props['name'] = self.cmb_symbol.currentText()
+            
+        if self.changeLabel_po == "change":    
+            props['color'] = '{0},{1},{2},{3}'.format(self.red_point,self.green_point,self.blue_point,self.alpha_point)
+            _util.MessageLogShowInfo("color picker point",'{0},{1},{2},{3}'.format(self.red_point,self.green_point,self.blue_point,self.alpha_point))
+        else:
+            props['color'] = '{0},{1},{2},{3}'.format(255,0,0,255)
+#             props['color']
+#             ='{0},{1},{2},255'.format(int(self.txt_red_po.text()),int(self.txt_blue_po.text()),int(self.txt_green_po.text()))
+#             props['outline_color'] =
+#             '{0},{1},{2},255'.format(int(self.txt_red_po.text()),int(self.txt_blue_po.text()),int(self.txt_green_po.text()))
         point.renderer().setSymbol(QgsMarkerSymbol.createSimple(props))
         point.triggerRepaint()
      
     # 원래는 따로 분리했었는데...  기회가 되면 다시 분리할 것
     def savePng_base(self, canvas, raster, polygon, line, point, saveName):
+        #구글 맵 설정
+        CRS = QgsCoordinateReferenceSystem(3857, QgsCoordinateReferenceSystem.PostgisCrsId)
+        self.gpm_canvas.setDestinationCrs(CRS)
+        if self.cmb_base_map.currentIndex() == 0 or self.cmb_base_map.currentIndex() == 1:
+            self.basmap_layer = self.getBasemap("Google satellite")
 #     def savePng_base(self,canvas,raster,polygon, saveName):
         try:
             _util.mk_folder(str(os.path.dirname(saveName)))
             
              #여기가 지금 주먹구구식인데 나중에 다시 관리
             self.rasterLayer = QgsRasterLayer(raster, ((os.path.basename(raster)).split(".png")[0]), "gdal")
-            self.gpm_canvas.setDestinationCrs(self.rasterLayer.crs())
+
+            #self.rasterLayer.loadNamedStyle("C:/GPM/ASC/3B-HHR-L.MS.MRG.3IMERG.20190401-S200000-E202959.1200.V05B_precipitationCal_Convert_Clip_UTM_resample.qml")
+
+
+            #self.gpm_canvas.setDestinationCrs(self.rasterLayer.crs())
             #2019-10-23 ----갱신
             #SHP 1개 - Polygon만
             if polygon != "" and line == "" and point == "":
                 baseLayer_polygon = QgsVectorLayer(polygon, ((os.path.basename(polygon)).split(".shp")[0]), "ogr")
                 self.changeColor_polygon(baseLayer_polygon)
             
-                
-                self.layers = [baseLayer_polygon]+[self.rasterLayer]
+                self.layers = [self.rasterLayer] + [baseLayer_polygon] + [self.basmap_layer]
                 self.gpm_canvas.setLayers(self.layers)
-                
-    #                 self.gpm_canvas.setLayers([baseLayer_polygon]+[self.rasterLayer])
-                self.gpm_canvas.zoomToFullExtent()
+                self.zoomToSelected(self.rasterLayer)
                 
             #SHP 3개
             if polygon != "" and line != "" and point != "":
-# #                 QgsMessageLog.logMessage(str(polygon) + " " + str(line) + " " + str(point), "GPM IMG")
                 baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
                 self.changeColor_point(baseLayer_point)
                 
@@ -2638,233 +3490,177 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                 
                 baseLayer_polygon = QgsVectorLayer(polygon, ((os.path.basename(polygon)).split(".shp")[0]), "ogr")
                 self.changeColor_polygon(baseLayer_polygon)
-                
-#                 self.gpm_canvas.setDestinationCrs(self.rasterLayer.crs())
-                self.layers = [baseLayer_point]+[baseLayer_line]+[baseLayer_polygon]+[self.rasterLayer]
+                self.layers = [self.rasterLayer] + [baseLayer_point] + [baseLayer_line] + [baseLayer_polygon] + [self.basmap_layer]
+           
                 self.gpm_canvas.setLayers(self.layers)
-                
-    #                 self.gpm_canvas.setLayers([baseLayer_polygon]+[self.rasterLayer])
                 self.gpm_canvas.zoomToFullExtent()
-                
-#                 QgsProject.instance().addMapLayers([self.rasterLayer, baseLayer_polygon, baseLayer_line, baseLayer_point], False)
-#                 list_layer = [baseLayer_line, baseLayer_point, baseLayer_polygon, self.rasterLayer]  # base layer가 위에
-#                 self.gpm_canvas.setLayerSet([QgsMapCanvasLayer(baseLayer_polygon),QgsMapCanvasLayer(baseLayer_line),QgsMapCanvasLayer(baseLayer_point),QgsMapCanvasLayer(self.rasterLayer)])
-#                 self.gpm_canvas.zoomToFullExtent()
-#                 
-            
-            #SHP 1개 - Line 만    
+                self.zoomToSelected(self.rasterLayer)
+
+            #SHP 1개 - Line 만
             if polygon == "" and line != "" and point == "":
                 _util.MessageLogShowInfo("LINE","qq")
                 baseLayer_line = QgsVectorLayer(line, (os.path.basename(line)).split(".shp")[0], "ogr")
                 self.changeColor_polyline(baseLayer_line)
-                
-#                 self.gpm_canvas.setDestinationCrs(self.rasterLayer.crs())
-                self.layers = [baseLayer_line]+[self.rasterLayer]
+                self.layers = [self.rasterLayer] + [baseLayer_line] + [self.basmap_layer]
                 self.gpm_canvas.setLayers(self.layers)
-                
                 self.gpm_canvas.zoomToFullExtent()
+                self.zoomToSelected(self.rasterLayer)
              
-            #SHP 1개 - Point만    
+            #SHP 1개 - Point만
             if polygon == "" and line == "" and point != "":
                 baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
                 self.changeColor_point(baseLayer_point)
-                
-#                 self.gpm_canvas.setDestinationCrs(self.rasterLayer.crs())
-                self.gpm_canvas.setLayers([baseLayer_point]+[self.rasterLayer])
-                self.layers = [baseLayer_point]+[self.rasterLayer]
-    #                 self.gpm_canvas.setLayers([baseLayer_polygon]+[self.rasterLayer])
+                self.gpm_canvas.setLayers([self.rasterLayer] + [baseLayer_point] + [self.basmap_layer])
+                self.layers = [self.rasterLayer] + [baseLayer_point] + [self.basmap_layer]
                 self.gpm_canvas.zoomToFullExtent()
-#                 
+                self.zoomToSelected(self.rasterLayer)
+
+
+            #SHP 0개 - Point만
+            #2020-09-08 박: 기능 추가
+            if polygon == "" and line == "" and point == "":
+                #baseLayer_point = QgsVectorLayer(point,
+                #(os.path.basename(point)).split(".shp")[0], "ogr")
+                #self.changeColor_point(baseLayer_point)
+                self.gpm_canvas.setLayers([self.rasterLayer] + [self.basmap_layer])
+                self.layers = [self.rasterLayer] + [self.basmap_layer]
+                self.gpm_canvas.zoomToFullExtent()
+                self.zoomToSelected(self.rasterLayer)
+
             #SHP 2개 - polygon, line
-            if polygon !="" and line !="" and point =="":
+            if polygon != "" and line != "" and point == "":
                 baseLayer_polygon = QgsVectorLayer(polygon, ((os.path.basename(polygon)).split(".shp")[0]), "ogr")
                 self.changeColor_polygon(baseLayer_polygon)
                 
                 baseLayer_line = QgsVectorLayer(line, (os.path.basename(line)).split(".shp")[0], "ogr")
                 self.changeColor_polyline(baseLayer_line)
                 
-#                 self.gpm_canvas.setDestinationCrs(self.rasterLayer.crs())
-                self.layers = [baseLayer_polygon]+[baseLayer_line]+[self.rasterLayer]
+                self.layers = [self.rasterLayer] + [baseLayer_polygon] + [baseLayer_line] + [self.basmap_layer]
                 self.gpm_canvas.setLayers(self.layers)
                 
                 self.gpm_canvas.zoomToFullExtent()
-#             
-            #SHP 2개 -  line, point
-            if polygon =="" and line !="" and point !="":
+                self.zoomToSelected(self.rasterLayer)
+#
+            #SHP 2개 - line, point
+            if polygon == "" and line != "" and point != "":
                 baseLayer_line = QgsVectorLayer(line, (os.path.basename(line)).split(".shp")[0], "ogr")
                 self.changeColor_polyline(baseLayer_line)
                 baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
                 self.changeColor_point(baseLayer_point)
-                
-#                 self.gpm_canvas.setDestinationCrs(self.rasterLayer.crs())
-                self.layers = [baseLayer_line]+[baseLayer_point]+[self.rasterLayer]
-                self.gpm_canvas.setLayers([baseLayer_line]+[baseLayer_point]+[self.rasterLayer])
+
+                self.layers = [self.rasterLayer] + [baseLayer_line] + [baseLayer_point] + [self.basmap_layer]
+                self.gpm_canvas.setLayers([self.rasterLayer] + [baseLayer_line] + [baseLayer_point] + [self.basmap_layer])
                 
                 self.gpm_canvas.zoomToFullExtent()
-#             
+                self.zoomToSelected(self.rasterLayer)
+#
             #SHP 2개 - polygon, point
-            if polygon !="" and line =="" and point !="":
+            if polygon != "" and line == "" and point != "":
                 baseLayer_polygon = QgsVectorLayer(polygon, ((os.path.basename(polygon)).split(".shp")[0]), "ogr")
                 self.changeColor_polygon(baseLayer_polygon)
                 
                 baseLayer_point = QgsVectorLayer(point, (os.path.basename(point)).split(".shp")[0], "ogr")
                 self.changeColor_point(baseLayer_point)
                 
-#                 self.gpm_canvas.setDestinationCrs(self.rasterLayer.crs())
-                self.layers = [baseLayer_polygon]+[baseLayer_point]+[self.rasterLayer]
-                self.gpm_canvas.setLayers([baseLayer_polygon]+[baseLayer_point]+[self.rasterLayer])
+                self.layers = [self.rasterLayer] + [baseLayer_polygon] + [baseLayer_point] + [self.basmap_layer]
+                self.gpm_canvas.setLayers([self.rasterLayer] + [baseLayer_polygon] + [baseLayer_point] + [self.basmap_layer])
                 
                 self.gpm_canvas.zoomToFullExtent()
-                
-            
-#             layers = [layer.id() for layer in list_layer]
-#             _util.MessageLogShowInfo("IMG","333 : "+str(layers))
-            
+                self.zoomToSelected(self.rasterLayer)
+               
+            #2020-07-28 박: 캔버스 위치로 이동 되지 않아서 주석 처리 먼저함
             self.saveAScanvas(saveName)
-            png_trans.png_background_Transparent(saveName)
-#             #canvas 초기화 ==============
+
+            #canvas 초기화
+            QgsProject.instance().removeMapLayers([self.rasterLayer.id()])
             QgsProject.instance().removeAllMapLayers() 
             self.gpm_canvas.clearCache()
-# #             =========================
-            
             
         except Exception as exc:
-#             _util.MessageLogShowInfo("IMG err",str( [layer.id() for layer in list_layer]))
             _util.MessageLogShowInfo("IMG err",str(exc))
-#             QgsProject.instance().removeMapLayers(layers)
-            _util.MessageboxShowError("GPM IMG", str(exc))
+            _util.MessageboxShowError("KICT Satellite precipitation Converter", str(exc))
             return
     
-    # Canvas Zoom Full 
+    # Canvas Zoom Full
     def canvas_zoomFull(self):
         self.gpm_canvas.refresh()
         self.gpm_canvas.zoomToFullExtent()
         self.gpm_canvas.refresh()
         self.gpm_canvas.zoomToFullExtent()
         
-
-
-    #old
-#     def saveAScanvas(self, layers,saveName):
     def saveAScanvas(self, saveName):
-        
-        extent_layer = self.rasterLayer.extent()
+        bfExtent = self.rasterLayer.extent()
+        point1 = QgsMapToolEmitPoint(self.gpm_canvas).toMapCoordinates(self.rasterLayer, QgsPointXY(bfExtent.xMinimum(), bfExtent.yMinimum()))
+        point2 = QgsMapToolEmitPoint(self.gpm_canvas).toMapCoordinates(self.rasterLayer, QgsPointXY(bfExtent.xMaximum(), bfExtent.yMaximum()))
+        afExtent = QgsRectangle(point1, point2)
+
+        #extent_layer = self.rasterLayer.extent()
+        extent_layer = afExtent
         xmin = extent_layer.xMinimum()
         xmax = extent_layer.xMaximum()
         ymin = extent_layer.yMinimum()
         ymax = extent_layer.yMaximum()
-        QgsMessageLog.logMessage(str(xmin) + " " + str(xmax) + " " + str(ymin)+ " " + str(ymax), "GPM IMG")
-        QgsMessageLog.logMessage(str(xmax-xmin) + " " + str(ymax-ymin), "GPM IMG")
-        # 이 부분은 이미지 사이즈임... 나중에 래스터와 동일한 사이즈로 만들어주세요! 라고 하면 그 때 래스터 사이즈 get 하는 거 알아내서 하도록...
-        # 조금 귀찮아서..
-#         width = 800
-#         height = 600
-          
-        if ((xmax-xmin) > (ymax-ymin)):
+
+        if ((xmax - xmin) > (ymax - ymin)):
             imageWidth_mm = 800
             imageHeight_mm = 510
-        if ((xmax-xmin) < (ymax-ymin)):
+        if ((xmax - xmin) < (ymax - ymin)):
             imageWidth_mm = 510
             imageHeight_mm = 800
           
         dpi = 92
-#         img = QImage(QSize(width, height), QImage.Format_RGB32)
         img = QImage(QSize(imageWidth_mm, imageHeight_mm),QImage.Format_ARGB32)
         img.setDotsPerMeterX(dpi / 25.4 * 1000)
         img.setDotsPerMeterY(dpi / 25.4 * 1000)
          
+        
         self.canvas_zoomFull()
-        extent = self.gpm_canvas.extent()
-        self.canvas_zoomFull()
-#             self.canvas_zoomFull()
-           
         mapSettings = QgsMapSettings()
-#         mapSettings.setMapUnits(0)
-        mapSettings.setExtent(extent)
+        CRS = QgsCoordinateReferenceSystem(3857, QgsCoordinateReferenceSystem.PostgisCrsId)
+        mapSettings.setDestinationCrs(CRS)
+        mapSettings.setExtent(extent_layer)
         mapSettings.setOutputDpi(dpi)
         mapSettings.setOutputSize(QSize(imageWidth_mm, imageHeight_mm))
         mapSettings.setLayers(self.layers)
-        mapSettings.setFlags(QgsMapSettings.Antialiasing | QgsMapSettings.UseAdvancedEffects
-                             | QgsMapSettings.ForceVectorOutput | QgsMapSettings.DrawLabeling)
-           
+        mapSettings.setFlags(QgsMapSettings.Antialiasing)
+        mapSettings.setFlags(QgsMapSettings.UseAdvancedEffects)
+        mapSettings.setFlags(QgsMapSettings.ForceVectorOutput)
+        mapSettings.setFlags(QgsMapSettings.DrawLabeling)
         p = QPainter()
         p.begin(img)
         mapRender = QgsMapRendererCustomPainterJob(mapSettings, p)
         mapRender.start()
         mapRender.waitForFinished()
         p.end()
-           
-#         saveName = "D:/Working/Gungiyeon/GPM/GPM_test/T20181213/test.png"
         img.save(saveName, 'png')
-#         QgsProject.instance().removeMapLayers(layers)
 
+        self.gpm_canvas.zoomToFeatureExtent(afExtent)
+        self.gpm_canvas.refresh()
 
-#     def saveAScanvas(self, layers, saveName):
-#     def saveAScanvas(self, saveName):
-#         extent_layer = self.rasterLayer.extent()
-#         xmin = extent_layer.xMinimum()
-#         xmax = extent_layer.xMaximum()
-#         ymin = extent_layer.yMinimum()
-#         ymax = extent_layer.yMaximum()
-#         QgsMessageLog.logMessage(str(xmin) + " " + str(xmax) + " " + str(ymin)+ " " + str(ymax), "GPM IMG")
-#         QgsMessageLog.logMessage(str(xmax-xmin) + " " + str(ymax-ymin), "GPM IMG")
-#         
-#         if ((xmax-xmin) > (ymax-ymin)):
-#             imageWidth_mm = 800
-#             imageHeight_mm = 510
-#         if ((xmax-xmin) < (ymax-ymin)):
-#             imageWidth_mm = 510
-#             imageHeight_mm = 800
-#         
-#         dpi = 300
-#         dpmm = dpi / 25.4
-#          
-#         map_settings =self.gpm_canvas.mapSettings()
-# #         c = QgsComposition(map_settings)
-#         c =QgsComposition(QgsProject.instance())
-#         c.setPaperSize(imageWidth_mm, imageHeight_mm)
-#         c.setPrintResolution(dpi)
-# #         transparent_fill =QgsFillSymbolV2.createSimple({ 'outline_style': 'no', 'style': 'no'})
-#         transparent_fill =QgsFillSymbolV2.createSimple({ 'outline_style': 'no', 'style': 'no'})
-#         c.setPageStyleSymbol( transparent_fill )
-#         x, y = 0, 0
-#         w, h = c.paperWidth(), c.paperHeight()
-#         composerMap = QgsComposerMap(c, x ,y, w, h)
-#         composerMap.zoomToExtent(extent_layer)
-#         composerMap.setBackgroundEnabled(False)
-#         c.addItem(composerMap)
-# 
-#         img = QImage(QSize(imageWidth_mm, imageHeight_mm), QImage.Format_ARGB32)
-#         img.setDotsPerMeterX(dpmm * 1000)
-#         img.setDotsPerMeterY(dpmm * 1000)
-#         img.fill(Qt.transparent)
-#         
-#         p = QPainter(img)
-# 
-#         c.setPlotStyle(QgsComposition.Print)
-#         c.renderPage( p, 0 )
-#         p.end()
-#         
-#         img.save(saveName, 'png')
-    
     def Folder_List(self,type):
         try:
-#              folderpath  =QFileDialog.getExistingDirectory(None, 'Select a folder:', 'c://', QtGui.QFileDialog.ShowDirsOnly)
-             folderpath  =QFileDialog.getExistingDirectory(None, 'Select a folder:', 'c://', QFileDialog.ShowDirsOnly)
-             filelsit=self.search(folderpath)
-             self.SettingListWidget(filelsit,type)
+            if (len(self.tbl_asc_list) == 0):
+                folderpath = QFileDialog.getExistingDirectory(None, 'Select a folder:', 'c://', QFileDialog.ShowDirsOnly)
+            else:
+                folderpath = QFileDialog.getExistingDirectory(None, 'Select a folder:', '', QFileDialog.ShowDirsOnly)
+             
+            filelsit = self.search(folderpath)
+            self.SettingListWidget(filelsit,type)
         except Exception as e:
-            _util.MessageboxShowError("GPM",str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter",str(e))
     
     
     def SettingListWidget(self,filelsit,type):
-        if type=="ASC":
+        if type == "ASC":
             self.tbl_asc_list.clear()
             for file in filelsit:
                 filename = os.path.splitext(file)[1]
                 if ".ASC" in filename.upper() :
                     self.tbl_asc_list.addItem(file)
-
+                    self.Min_Max_value(file)
+            if len(filelsit) > 0:
+                asc_path = os.path.dirname(filelsit[0])
+                self.Make_color_text_png(asc_path)
         else:
             self.btl_png_list.clear()
             for file in filelsit:
@@ -2873,8 +3669,8 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                     self.btl_png_list.addItem(file)
 
     def search(self,dirname):
-        fileList=[]
-        if dirname!="" and dirname is not None:
+        fileList = []
+        if dirname != "" and dirname is not None:
             filenames = os.listdir(dirname)
             for filename in filenames:
                 filePath = os.path.join(dirname, filename)
@@ -2889,235 +3685,384 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
         try:
             self.btl_png_list.clear() #수행시 초기화 v0.0.14 추가
             items = self.tbl_asc_list.selectedItems()
-            
-#             canvas = self.gpm_canvas; vectorLayer =self.shp_layer
-            if self.txt_output_png.text() =="":
+            if self.txt_output_png.text() == "":
                 _util.MessageboxShowInfo("Notice","Input Save Path.")
                 return
-            
-            
-            if len(items)>0:
+            if len(items) > 0:
                 for i in list(items):
                     #2018-10-25 v0.0.14 추가
                     asc_file = _util.GetFilename(i.text())
-                    png_name = self.txt_output_png.text() + "/step1/"+asc_file.upper()+".PNG"
+                    png_name = ""
+                    savePath = ""
+                    if ("IMERG" in asc_file):
+                        if os.path.exists(self.txt_output_png.text() + "/GPM/") == False:
+                            gpm_folder = os.mkdir(self.txt_output_png.text() + "/GPM/")
+                        png_name = self.txt_output_png.text() + "/GPM/" + asc_file.upper() + ".PNG"
+                    
+                    if ("CMORPH" in asc_file):
+                        if os.path.exists(self.txt_output_png.text() + "/CMORPH/") == False:
+                            cmorph_folder = os.mkdir(self.txt_output_png.text() + "/CMORPH/")
+                        png_name = self.txt_output_png.text() + "/CMORPH/" + asc_file.upper() + ".PNG"
+                            
+                    if ("gsmap" in asc_file):
+                        if os.path.exists(self.txt_output_png.text() + "/GSMap/") == False:
+                            gsmap_folder = os.mkdir(self.txt_output_png.text() + "/GSMap/")
+                        png_name = self.txt_output_png.text() + "/GSMap/" + asc_file.upper() + ".PNG"
                     sleep(0.5)
                     
-                    folder_path=""
+                    folder_path = ""
+
+                    if png_name == "":
+                        png_name = self.txt_output_png.text() + "/image/" + asc_file.upper() + ".PNG"
+
                     self.make_png(i.text(), png_name)
                     
                     if self.shp_layer_polygon != "" or self.shp_layer_line != "" or self.shp_layer_point != "":
-                    #base img 있는 png 추가 생성
-#                     layers = [layer.id() for layer in self.gpm_canvas.legendInterface().layers()]
-#                     savePath = png_name.replace(".png","_base.png")
-#                         savePath = (png_name.upper()).replace(".PNG","_base.png")
-#                         QgsMessageLog.logMessage(str(savePath),"GPM IMG")
-                        savePath=self.txt_output_png.text() + "/step2/"+asc_file.upper()+"_base.png"
-#                         QgsMessageLog.logMessage(str(savePath2),"GPM IMG2")
-    #                     QgsMapLayerRegistry.instance().addMapLayers([png_name,self.baseLayer], False)
-    #                     saveImg = _saveimg.savePng_base((canvas), (png_name), (vectorLayer), png_name)
-    #                     saveImg = self.savePng_base(self.gpm_canvas, png_name, self.shp_layer, savePath)
-                        saveImg = self.savePng_base(self.gpm_canvas, png_name, self.shp_layer_polygon, self.shp_layer_line, self.shp_layer_point, savePath)
-#                         saveImg = self.savePng_base(self.gpm_canvas, png_name, self.shp_layer_polygon,savePath)
+                        if ("IMERG" in asc_file):
+                            if os.path.exists(self.txt_output_png.text() + "/GPM/") == False:
+                                gpm_folder = os.mkdir(self.txt_output_png.text() + "/GPM/")
+                            savePath = self.txt_output_png.text() + "/GPM/" + asc_file.upper() + ".PNG"
                         
+                        if ("CMORPH" in asc_file):
+                            if os.path.exists(self.txt_output_png.text() + "/CMORPH/") == False:
+                                cmorph_folder = os.mkdir(self.txt_output_png.text() + "/CMORPH/")
+                            savePath = self.txt_output_png.text() + "/CMORPH/" + asc_file.upper() + ".PNG"
+                                
+                        if ("gsmap" in asc_file):
+                            if os.path.exists(self.txt_output_png.text() + "/GSMap/") == False:
+                                gsmap_folder = os.mkdir(self.txt_output_png.text() + "/GSMap/")
+                            savePath = self.txt_output_png.text() + "/GSMap/" + asc_file.upper() + ".PNG"
+
+                        #이미지 생성 폴더
+                        if savePath == "":
+                            savePath = self.txt_output_png.text() + "/image/" + asc_file.upper() + ".PNG"
+                         
+                        saveImg = self.savePng_base(self.gpm_canvas, png_name, self.shp_layer_polygon, self.shp_layer_line, self.shp_layer_point, savePath)
+                        QApplication.processEvents()
+
                         sleep(0.5)
-                        self.btl_png_list.addItem(savePath) #이게 결과 png 파일임. 이것만 들어가도록 처리..
-                    
+                        self.btl_png_list.addItem(savePath) #이게 결과 png 파일임.  이것만 들어가도록 처리..
                     else:
+                        if ("IMERG" in asc_file):
+                            if os.path.exists(self.txt_output_png.text() + "/GPM/") == False:
+                                gpm_folder = os.mkdir(self.txt_output_png.text() + "/GPM/")
+                            savePath = self.txt_output_png.text() + "/GPM/" + asc_file.upper() + ".PNG"
+                        
+                        if ("CMORPH" in asc_file):
+                            if os.path.exists(self.txt_output_png.text() + "/CMORPH/") == False:
+                                cmorph_folder = os.mkdir(self.txt_output_png.text() + "/CMORPH/")
+                            savePath = self.txt_output_png.text() + "/CMORPH/" + asc_file.upper() + ".PNG"
+                                
+                        if ("gsmap" in asc_file):
+                            if os.path.exists(self.txt_output_png.text() + "/GSMap/") == False:
+                                gsmap_folder = os.mkdir(self.txt_output_png.text() + "/GSMap/")
+                            savePath = self.txt_output_png.text() + "/GSMap/" + asc_file.upper() + ".PNG"
+
+                        #이미지 생성 폴더
+                        if savePath == "":
+                            savePath = self.txt_output_png.text() + "/image/" + asc_file.upper() + ".PNG"
+                         
+                        saveImg = self.savePng_base(self.gpm_canvas, png_name, "", "", "", savePath)
+                        QApplication.processEvents()
                         self.btl_png_list.addItem(png_name)
-                    
-                self.shp_layer_polygon = "" ;self.shp_layer_line = "";self.shp_layer_point = ""
-                self.txt_pngshp_polygon.setText("");self.txt_pngshp_line.setText("");self.txt_pngshp_point.setText("")
-#                     self.btl_png_list.addItem(i.text().upper().replace(".ASC",".PNG"))
-                    #self.Png_Add_Text(i.text().upper().replace(".ASC",".PNG"))
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter","Image creation is complete. ")
             else:
-                _util.MessageboxShowError("GPM","No ASC file selected.")
+                _util.MessageboxShowError("KICT Satellite Precipitation Converter","No ASC file selected.")
                 return
             
         except Exception as e:
-            _util.MessageboxShowError("GPM",str(e))
+            _util.MessageboxShowError("KICT Satellite Precipitation Converter",str(e))
 
     def Make_gif_user(self):
         try:
-            if self.txt_save_gif_path_imag.text()=="":
-                _util.MessageboxShowError("GPM","The file path is not set.")
+            
+
+            if self.txt_save_gif_path_imag.text() == "":
+                _util.MessageboxShowError("KICT Satellite Precipitation Converter","The file path is not set.")
                 self.txt_save_gif_path_imag.setFocus()
                 return
 
             # 이미지 목록 리스트
             img_list = []
             items = self.btl_png_list.selectedItems()
-            if len(items)>0:
+            if len(items) > 0:
                 for file in (items):
                     self.Png_Add_Text(str(file.text()))
                     sleep(0.5)
                     img_list.append(imageio.imread(file.text()))
                     
                 sleep(1)
-#                 imageio.mimsave(self.txt_save_gif_path_imag.text(), img_list, duration=(self.Interval_box_imag.value()))
                 imageio.mimsave(self.txt_save_gif_path_imag.text(), img_list, duration=(self.Interval_box_imag.value()))
-#                 imageio.mimwrite(self.txt_save_gif_path_imag.text(), img_list, format='GIF-PIL', quantizer=(self.Interval_box_imag.value()))
-                
+
             else:
                 _util.MessageboxShowError("Notice","No PNG file selected.")
                 return
-            _util.MessageboxShowInfo("Notice","Make GIF")
-#             QMessageBox.information(None, "Notice", "Make GIF")
+            _util.MessageboxShowInfo("Notice"," GIF creation is complete.")
         except Exception as ex:
             _util.MessageboxShowInfo("Notice",str(ex))
-#             QMessageBox.Warning(None, "Notice", str(ex))
 
     def Png_Add_Text(self,filepath):
         try:
-            #img = Image.open("c://Users/hermesys/Desktop/Convert/2.png")
-            #draw = ImageDraw.Draw(img)
-            #font = ImageFont.truetype("sans-serif.ttf", 20)
-            #draw.text((0, 0),"test",(255,255,255),font=font)
-            #img.save("c://Users/hermesys/Desktop/Convert/2.png")
-            
             # 글자 사이즈 값은 나중에 조절 해야 할듯함
-            im1=Image.open(filepath)
+            im1 = Image.open(filepath)
             width, height = im1.size
             #2018-10-26 요청에 따라 크기 줄임
-            if (width>height):
-                font_size=int(width/50)
-            if (width<height):
-                font_size=int(height/75)
-#             QgsMessageLog.logMessage(str(font_size)+" : "+str(height)+" : "+str(width),"GPM IMG")
+            if (width > height):
+                font_size = int(width / 50)
+            if (width < height):
+                font_size = int(height / 75)
             font = ImageFont.truetype("./arial.ttf", font_size)
             
-            fileName=_util.GetFilename(filepath)
-#             QgsMessageLog.logMessage(fileName.split("_")[0],"GPM IMG")
-            # Drawing the text on the picture
+            fileName = _util.GetFilename(filepath)
             draw = ImageDraw.Draw(im1)
-#             draw.text((0, 0),fileName,(255,0,128),font=font)
-#             draw.text((0, 0),(fileName.split("_")[0]),(255,0,128),font=font)
-            #data type 별 분류
-
-            #CMORPH
-#             if type.lower()=="cmorph":
-#             if "cmorph" in fileName.lower():
-#                 file_name_replace = str(os.path.splitext(fileName)[0].split("/")[-1])
-#             #GSMap
-# #             if type.lower()=="gsmap":
-#             if "gsmap" in fileName.lower():
-#                 file_name_replace = str(os.path.splitext(fileName)[0].split("/")[-1])
-#             
-#                         #GPM
-# #             if type.lower()=="gpm":
-# #                 file_name_replace = str((fileName.split("_")[0]).split("-")[0:]).replace(", ","-").replace("'","")
-#             else:
-#                 file_name_replace = str(os.path.splitext(fileName)[0].split("/")[-1])
-            
             QgsMessageLog.logMessage(str(fileName),"GPM PNG ADD")
-#             draw.text((0, 0),file_name_replace,(255,255,0),font=font) #노란색 글씨
-#             draw.text((0, 0),file_name_replace,(255,0,0),font=font) #빨강
             draw.text((0, 0),fileName,(255,0,0),font=font) #
-#             draw.text((0, 0),file_name_replace,(0,0,255),font=font) #파랑
             draw = ImageDraw.Draw(im1)
  
             # Save the image with a new name
             im1.save(filepath)
         except Exception as e:
-            _util.MessageboxShowInfo("GPM", str(e))
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+            _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", str(e))
     
      # 버튼 아이콘 설정
     def set_btn_icon(self):
-        # btn_Apply 버튼의 아이콘 넣기
-        btn_apply_icon = os.path.dirname(os.path.abspath(__file__)) + "/icon/bottom_arrow.png"
-        self.btn_Apply.setIcon(QIcon(btn_apply_icon))
-        
-        # kict_logo 박아넣음.
-        kict_logo = os.path.dirname(os.path.abspath(__file__)) + "/icon/KICT_CI.png"
-#         self.kict_logo.setIcon(QtGui.QIcon(kict_logo))
-        logo_img = QPixmap()
-        logo_img.load(kict_logo)
-        logo_img = logo_img.scaledToWidth(150)
-        self.kict_logo.setPixmap(logo_img )
-        
-    # 트리 위젯에 메뉴 항목 설정
-    def Set_treeWidget(self):
-        self.treeWidget.setHeaderHidden(True)
-        item9 = QTreeWidgetItem(self.treeWidget, ['Data Download'])
-        Data_icon = path + '\image\data.png'  # TEST
-        icon = QIcon(Data_icon)
-        item9.setIcon(0, icon)
-        item = QTreeWidgetItem(self.treeWidget, ['HDF5_Convert'])
-        icon = QIcon(settings_icon)
-        item.setIcon(0, icon)
-        item0 = QTreeWidgetItem(self.treeWidget, ['Clip'])
-        icon = QIcon(settings_icon)
-        item0.setIcon(0, icon)
-        item1 = QTreeWidgetItem(self.treeWidget, ['UTM'])
-        icon = QIcon(settings_icon)
-        item1.setIcon(0, icon)
-        item2 = QTreeWidgetItem(self.treeWidget, ['Resampling'])
-        icon = QIcon(settings_icon)
-        item2.setIcon(0, icon)
-        item3 = QTreeWidgetItem(self.treeWidget, ['Accum'])
-        icon = QIcon(settings_icon)
-        item3.setIcon(0, icon)
-        item4 = QTreeWidgetItem(self.treeWidget, ['Make CSV'])
-        icon = QIcon(settings_icon)
-        item4.setIcon(0, icon)
-        item5 = QTreeWidgetItem(self.treeWidget, ['Function'])
-        icon = QIcon(settings_icon)
-        item5.setIcon(0, icon)
-        item6 = QTreeWidgetItem(self.treeWidget, ['Make ASC'])
-        icon = QIcon(settings_icon)
-        item6.setIcon(0, icon)
-        item7 = QTreeWidgetItem(self.treeWidget, ['Satellitecorrection'])
-        icon = QIcon(settings_icon)
-        item7.setIcon(0, icon)
-        item8 = QTreeWidgetItem(self.treeWidget, ['Make Image'])
-        icon = QIcon(settings_icon)
-        item8.setIcon(0, icon)
-
-        self.mainLayout = QGridLayout(self)
-        self.mainLayout.addWidget(self.treeWidget)
-        self.treeWidget.itemDoubleClicked.connect(self.OnDoubleClick)
-
-    # 메뉴 트리 목록에서 아이템 클릭했을때 이벤트 처리
-    def OnDoubleClick(self, item):
         try:
-            SelectItme = item.text(0)
-            if SelectItme == 'HDF5_Convert':
-                self.tabWidget.setCurrentIndex(1)
-            if SelectItme == 'Clip':
-                self.tabWidget.setCurrentIndex(2)
-            elif SelectItme == "UTM":
-                self.tabWidget.setCurrentIndex(3)
-            elif SelectItme == "Resampling":
-                self.tabWidget.setCurrentIndex(4)
-            elif SelectItme == "Accum":
-                self.tabWidget.setCurrentIndex(5)
-            elif SelectItme == 'Make CSV':
-                self.tabWidget.setCurrentIndex(6)
-            elif SelectItme == 'Function':
-                self.tabWidget.setCurrentIndex(7)
-            elif SelectItme == 'Make ASC':
-                self.tabWidget.setCurrentIndex(8)
-            elif SelectItme == 'Satellitecorrection':
-                self.tabWidget.setCurrentIndex(9)
-            elif SelectItme == 'Make Image':
-                self.tabWidget.setCurrentIndex(10)
-            elif SelectItme == 'Data Download':
-                self.tabWidget.setCurrentIndex(0)
+            # btn_Apply 버튼의 아이콘 넣기
+            btn_apply_icon = os.path.dirname(os.path.abspath(__file__)) + "/icon/bottom_arrow.png"
+            self.btn_Apply.setIcon(QIcon(btn_apply_icon))
+            self.btn_Apply_CM.setIcon(QIcon(btn_apply_icon))
 
-        except Exception as es:
-            _util.MessageboxShowError("Error message", str(es))
+            # kict_logo 박아넣음.
+            kict_logo = os.path.dirname(os.path.abspath(__file__)) + "/icon/KICT_CI.png"
+            logo_img = QPixmap()
+            logo_img.load(kict_logo)
+            logo_img = logo_img.scaledToWidth(150)
+            self.kict_logo.setPixmap(logo_img)
+        except Exception as e:
+            _util.MessageboxShowInfo("icon", str(e))
+
+
+
+
+    #2020-10-20 박: 기능 추가
+    def Select_Folder__Dialog_KML(self):
+        try:
+            self.MaxValue = 0
+            self.MinValue = 0
+            if (str(self.tbl_KML.item(0,0)) == "None"):
+                files = QFileDialog.getOpenFileNames(self, "Open files", "C:\\", "tif (*.tif)")[0]
+            else:
+                files = QFileDialog.getOpenFileNames(self, "Open files", "", "tif (*.tif)")[0]
+            
+            self.tbl_KML.clear() #초기화
+            self.tbl_KML.setRowCount(0)
+
+            self.tbl_KML.setColumnCount(1)
+            self.tbl_KML.setHorizontalHeaderLabels(["Layer List"])
+            count = 0
+            
+            self.convert_KML = []
+            for file in files:
+                self.tbl_KML.insertRow(count)
+                self.tbl_KML.setItem(count, 0, QTableWidgetItem(str(file)))
+                self.convert_KML.append(str(file))
+                # 레스터 최대, 최소값 확인
+                self.Min_Max_value(file)
+                count = count + 1
+
+            # 칼라 텍스트 생성
+            if  len(files) > 0:
+                floder = os.path.dirname(self.convert_KML[0])
+                self.Make_color_text_KML(floder)
+        except Exception as e:
+            _util.MessageboxShowError("KICT Satellite Precipitation KML",str(e))
+    
+    def Conver_KML(self):
+        try:
+            folder = self.txt_KML_Image_path.text()
+            if folder.strip() == "":
+                _util.MessageboxShowInfo("KICT Satellite Precipitation Converter", "The folder path is not set.")
+                self.txt_KML_Image_path.setFocus()
+                return
+        
+            if len(self.convert_KML) > 0:
+            
+                self.KML_progressBar.setValue(0)
+                self.KML_progressBar.setMaximum(len(self.convert_KML))
+                i = 0
+                for file in self.convert_KML:
+                    TIF_file_name = _util.GetFilename(file)
+                    savePath = self.txt_KML_Image_path.text() + "/KML/" + TIF_file_name.upper() + ".PNG"
+                    self.make_png_kml(file, savePath)
+
+                    png_name = TIF_file_name.upper() + ".PNG"
+                    kml_path = self.txt_KML_Image_path.text() + "/KML/" + TIF_file_name.upper() + ".kml"
+                    self.make_kml(png_name,kml_path)
+                
+                    self.KML_progressBar.setValue(i + 1)
+                    i = i + 1
+                _util.MessageboxShowInfo("KICT Satellite Precipitation KML"," KML file creation is complete.")
+        except Exception as e:
+            _util.MessageboxShowError("KICT Satellite Precipitation KML"," An error occurred while creating the KML file.")
+    
+    def make_kml(self,name,kml_path):
+        kml = f"""<?xml version="1.0" encoding="UTF-8"?>
+         <kml xmlns="http://earth.google.com/kml/2.1">
+          <Document>
+           <GroundOverlay>
+                 <Icon>
+                   <href>{name}</href>
+                 </Icon>
+                <altitudeMode>clampToGround</altitudeMode>
+                <LatLonBox>
+                  <south>90</south>
+                  <north>-90</north>
+                  <west>-180</west>
+                  <east>180</east>
+                  <rotation>0</rotation>
+               </LatLonBox>
+           </GroundOverlay>
+          </Document>
+        </kml>"""
+
+        f = open(kml_path,'w')
+        f.write(kml)
+        f.close()
+
+    def make_png_kml(self, asc_path, png_path):
+        #color_path = os.path.dirname(os.path.realpath(__file__)) +
+        #"/Color/GPM_KML_color.txt"
+        color_path = self.Color_text_path_KML
+        
+        _util.mk_folder(str(os.path.dirname(png_path)))
+        mycall = 'gdaldem.exe color-relief "{0}" "{1}" "{2}" -alpha'.format(asc_path,color_path,png_path)
+        callvalue = sub.call(mycall,shell=True)
+        #if callvalue != 0:
+        #    _util.MessageboxShowInfo("Notice", "Not completed.")
+
+    def Min_Max_value(self,raster):
+        gtif = gdal.Open(raster)
+        srcband = gtif.GetRasterBand(1)
+        stats = srcband.GetStatistics(True, True)
+        
+        if self.MaxValue < math.ceil(stats[1]):
+            self.MaxValue = math.ceil(stats[1])
+
+        if self.MinValue > math.ceil(stats[0]):
+            self.MinValue = math.ceil(stats[0])
+
+#    def Make_color_text_KML(self,folderpath):
+#        self.Color_text_path =""
+#        value = self.MaxValue - self.MinValue
+#        div = value//100
+#        self.Color_text_path_KML=folderpath + "/Color.txt"
+
+#        Color_list=[]
+#        for i in range(100):
+#            Clor_list.append(div*i)
+
+
+
+#        Color = f"""0 255 255 255 0
+#{div*1} 30 0 130
+#{div*2} 0 80 170
+#{div*3} 0 141 200
+#{div*4} 0 150 17
+#{div*5} 28 240 0
+#{div*6} 143 255 45
+#{div*7} 255 252 1
+#{div*8} 255 197 21
+#{div*9} 224 110 0
+#{div*10} 143 33 0
+#{div*11} 240 0 28
+#{div*12} 255 165 207
+#{div*13} 239 225 255
+#{self.MaxValue} 255 255 255 0"""
+
+#        f = open(self.Color_text_path_KML,'w')
+#        f.write(Color)
+#        f.close()
+
+
+
+#    def Make_color_text_png(self,folderpath):
+#        self.Color_text_path_png =""
+#        value = self.MaxValue - self.MinValue
+#        div = value//11
+#        self.Color_text_path_png=folderpath + "/Color.txt"
+#        Color = f"""0 255 255 255
+#{div*1} 176 224 230
+#{div*2} 173 216 230
+#{div*3} 135 206 250
+#{div*4} 135 206 235
+#{div*5} 0 191 255
+#{div*6} 176 196 222
+#{div*7} 30 144 255
+#{div*8} 100 149 237
+#{div*9} 70 130 180
+#{div*10} 65 105 225
+#{div*11} 0 0 255 255
+#nv 0 0 0 0"""
+#        f = open(self.Color_text_path_png,'w')
+#        f.write(Color)
+#        f.close()
+
+
+
+    def Make_color_text_KML(self,folderpath):
+        self.Color_text_path = ""
+        #value = self.MaxValue - self.MinValue
+        #div = value//255
+        div = self.MaxValue / 255
+        self.Color_text_path_KML = folderpath + "/Color.txt"
+
+        with open(self.Color_text_path_KML, 'w') as f:
+            for i in range(255):
+                if i == 0:
+                    f.write("0   255 255 255 0\n")
+                elif i == 254:
+                    f.write(str(self.MaxValue) + "  255 255 255 0\n")
+                else:
+                    value = round((div * i),2)
+                    f.write(str(value) + "   " + str(i) + " 0 130\n")
+
+
+
+#        Color = f"""0 255 255 255 0
+#{div*1} 30 0 130
+#{div*2} 0 80 170
+#{div*3} 0 141 200
+#{div*4} 0 150 17
+#{div*5} 28 240 0
+#{div*6} 143 255 45
+#{div*7} 255 252 1
+#{div*8} 255 197 21
+#{div*9} 224 110 0
+#{div*10} 143 33 0
+#{div*11} 240 0 28
+#{div*12} 255 165 207
+#{div*13} 239 225 255
+#{self.MaxValue} 255 255 255 0"""
+
+#        f = open(self.Color_text_path_KML,'w')
+#        f.write(Color)
+#        f.close()
+
+
+
+
+    def Make_color_text_png(self,folderpath):
+        self.Color_text_path_png = ""
+        #value = self.MaxValue - self.MinValue
+        div = self.MaxValue / 255
+        self.Color_text_path_png = folderpath + "/Color.txt"
+        with open(self.Color_text_path_png, 'w') as f:
+            for i in range(255):
+                if i == 0:
+                    f.write("0   255 255 255 0\n")
+                elif i == 254:
+                    f.write(str(self.MaxValue) + "  255 255 255 0\n")
+                else:
+                    value = round((div * i),2)
+                    f.write(str(value) + " " + str(255 - i) + " 255 255\n")
+

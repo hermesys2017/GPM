@@ -16,6 +16,7 @@ class dict_clip:
     def __init__(self):
         self.Clip_dic = {}
         
+        
         # =========== Add CLIP zone ========================٩(ˊᗜˋ*)و
         '''
         CLIP zone의 영역 추가 시 콤보 박스에 추가할 수 있음,
@@ -24,6 +25,20 @@ class dict_clip:
         
         '''
         self.cmb_Clip =["Select Country","Korea","South_Korea","North_Korea","Philippines","Morocco", "Korea_Typoon","Test1"]
+
+        # 2021.11.05 JO : utm 좌표계 설정 이쪽으로 이동
+        self.cmb_utm=["Select UTM", 
+                                      'WGS84_UTM 1N','WGS84_UTM 1S','WGS84_UTM 2N','WGS84_UTM 2S','WGS84_UTM 3N','WGS84_UTM 3S','WGS84_UTM 4N','WGS84_UTM 4S','WGS84_UTM 5N','WGS84_UTM 5S',
+                                      'WGS84_UTM 6N','WGS84_UTM 6S','WGS84_UTM 7N','WGS84_UTM 7S','WGS84_UTM 8N','WGS84_UTM 8S','WGS84_UTM 9N','WGS84_UTM 9S','WGS84_UTM 10S','WGS84_UTM 11N',
+                                      'WGS84_UTM 11S','WGS84_UTM 12N','WGS84_UTM 12S','WGS84_UTM 13N','WGS84_UTM 13S','WGS84_UTM 14N','WGS84_UTM 14S','WGS84_UTM 15N','WGS84_UTM 15S','WGS84_UTM 16N','WGS84_UTM 16S',
+                                      'WGS84_UTM 17N','WGS84_UTM 17S','WGS84_UTM 18N','WGS84_UTM 18S','WGS84_UTM 19N','WGS84_UTM 19S','WGS84_UTM 20N','WGS84_UTM 20S','WGS84_UTM 21N','WGS84_UTM 21S','WGS84_UTM 22N',
+                                      'WGS84_UTM 22S','WGS84_UTM 23N','WGS84_UTM 23S','WGS84_UTM 24N','WGS84_UTM 24S','WGS84_UTM 25N','WGS84_UTM 25S','WGS84_UTM 26N','WGS84_UTM 26S','WGS84_UTM 27N','WGS84_UTM 27S',
+                                      'WGS84_UTM 28N','WGS84_UTM 28S','WGS84_UTM 29N','WGS84_UTM 29S','WGS84_UTM 30N','WGS84_UTM 30S','WGS84_UTM 31N','WGS84_UTM 31S','WGS84_UTM 32N','WGS84_UTM 32S','WGS84_UTM 33N',
+                                      'WGS84_UTM 33S','WGS84_UTM 34N','WGS84_UTM 34S','WGS84_UTM 35N','WGS84_UTM 35S','WGS84_UTM 36N','WGS84_UTM 36S','WGS84_UTM 37N','WGS84_UTM 37S','WGS84_UTM 38N','WGS84_UTM 38S',
+                                      'WGS84_UTM 39N','WGS84_UTM 39S','WGS84_UTM 40N','WGS84_UTM 40S','WGS84_UTM 41N','WGS84_UTM 41S','WGS84_UTM 42N','WGS84_UTM 42S','WGS84_UTM 43N','WGS84_UTM 43S','WGS84_UTM 44N',
+                                      'WGS84_UTM 44S','WGS84_UTM 45N','WGS84_UTM 45S','WGS84_UTM 46N','WGS84_UTM 46S','WGS84_UTM 47N','WGS84_UTM 47S','WGS84_UTM 48N','WGS84_UTM 48S','WGS84_UTM 49N','WGS84_UTM 49S',
+                                      'WGS84_UTM 50N','WGS84_UTM 50S','WGS84_UTM 51N','WGS84_UTM 51S','WGS84_UTM 52N','WGS84_UTM 52S','WGS84_UTM 53N','WGS84_UTM 53S','WGS84_UTM 54N','WGS84_UTM 54S','WGS84_UTM 55N',
+                                      'WGS84_UTM 55S','WGS84_UTM 56N','WGS84_UTM 56S','WGS84_UTM 57N','WGS84_UTM 57S','WGS84_UTM 58N','WGS84_UTM 58S','WGS84_UTM 59N','WGS84_UTM 59S','WGS84_UTM 60N','WGS84_UTM 60S']
         
         self.Dic_Clip_zone()
     

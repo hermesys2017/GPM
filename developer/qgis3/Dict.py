@@ -8,8 +8,10 @@ class dict:
     def __init__(self):
         self.UTM_dic = {}
 #         self.Clip_dic = {}
+#         self.dic_UTM={}
 
         self.Dic_UTM()
+#         self.Dict_UTM()
 #         self.Dic_Clip()
 
     def Dic_UTM(self):
@@ -134,7 +136,8 @@ class dict:
         self.UTM_dic['WGS84_UTM 60N'] ='+proj=utm +zone=60 +datum=WGS84 +units=m +no_defs'
         self.UTM_dic['WGS84_UTM 60S'] ='+proj=utm +zone=60 +south +datum=WGS84 +units=m +no_defs'
         
-        
+    def Dict_UTM(self):
+        self.dic_UTM[""]=""
         
         
 #         self.UTM_dic['WGS84_UTM 27N'] = '+proj=utm +zone=27 +datum=WGS84 +units=m +no_defs'

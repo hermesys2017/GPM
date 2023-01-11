@@ -1,19 +1,20 @@
 # This file contains metadata for your plugin.
 
-# This file should be included when you package your plugin.# Mandatory items:
+# This file should be included when you package your plugin.
+# Mandatory items:
 
 [general]
 name=KICT Satellite Precipitation Converter
 qgisMinimumVersion=3.0
-description=KICT_Satellite_Precipitation_Converter
-version=0.0.40
+description=KICT Satellite Precipitation Converter Plugin
+version=0.1.0
 author=Hermesys
-email=mhcho058@hermesys.co.kr
+email=info@hermesys.co.kr
 
 about=KICT_Satellite_Precipitation_Converter in QGIS3
 
-tracker=http://bugs
-repository=http://repo
+tracker=https://github.com/floodmodel/Converter/issues
+repository=https://github.com/floodmodel/Converter
 # End of mandatory metadata
 
 # Recommended items:
@@ -23,27 +24,14 @@ hasProcessingProvider=no
 changelog=
 	KICT Satellite Precipitation Converter In QGIS 3
 	
-	v0.0.38
-		: Data Download -  ADD Data GSMap
-		: Convert to TIFF - Convert GSMap to TIFF
-		: Make CSV - Add ComboBox FieldName
-		: Accum - ADD GSMap
-		: Make Image - change color polygon, polyline, change symbol point 
 	
-	v0.0.39
-		: Convert to TIFF - Normalize Convert HDF5 to TIFF 
-		: Accum - (CMORPH, GSMap) Modification of Cumulative Rainfall Calculation
-		
-	v0.0.40
-		: Make Image - Some modify, create GIF Filename
-		
-	
-	
+	v0.1.0
+		: help 다이얼로그 창 수정
 
 # Tags are comma separated with spaces allowed
-tags=python,GPM
+tags=python,GPM,CMORPH,GSMap
 
-homepage=http://homepage
+homepage=http://hermesys.co.kr/
 category=Raster
 icon=icon/GPM.png
 # experimental flag

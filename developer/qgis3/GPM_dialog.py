@@ -39,8 +39,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 
-import PIL
-from PIL import ImageFont, Image, ImageDraw
+
 
 import subprocess as sub
 from time import  sleep
@@ -62,8 +61,11 @@ sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib')
 # 2022.12.28 조 : imageio가 없어서 기본 설치하도록 수정
 #util.util().import_or_install("pillow")
 #util.util().import_or_install("_imaging")
-util.util().import_or_install("imageio")
+import PIL
+from PIL import ImageFont, Image, ImageDraw
 import imageio
+# import imageio.v3 as iio
+
 import transpose_Tiff as tr_Tiff
 import Canvas_Tools
 import util_accum
@@ -2015,8 +2017,11 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
             pro_count = 0
             for filelist in self.accum_list:
 #                 _util.MessageLogShowInfo("GPM Amount",str(filelist))
+#                 print (self.txt_output_accum.text() + "/GPM/Amount")
                 if os.path.exists(self.txt_output_accum.text() + "/GPM/Amount") == False:
+#                     print ("False")
                     os.mkdir(self.txt_output_accum.text() + "/GPM/Amount")
+#                     print ("create folder Amount")
                     
                 filename = _util.GetFilename(filelist)
                 Output_Amount = self.txt_output_accum.text() + "/GPM/Amount/" + filename + "_Amount.tif"
@@ -3790,9 +3795,13 @@ class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
                     self.Png_Add_Text(str(file.text()))
                     sleep(0.5)
                     img_list.append(imageio.imread(file.text()))
+#                     img_list.append(iio.imread(file.text()))
+
+                    
                     
                 sleep(1)
                 imageio.mimsave(self.txt_save_gif_path_imag.text(), img_list, duration=(self.Interval_box_imag.value()))
+#                 iio.mimsave(self.txt_save_gif_path_imag.text(), img_list, duration=(self.Interval_box_imag.value()))
 
             else:
                 _util.MessageboxShowError("Notice","No PNG file selected.")

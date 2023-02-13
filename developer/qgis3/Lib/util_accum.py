@@ -25,7 +25,8 @@ qgis_path=str(os.path.dirname(os.path.dirname(str(qgis_paths[1].split("\t\t")[1]
 # osgeo4w="C:/Program Files/QGIS 3.8/OSGeo4W.bat"
 osgeo4w=qgis_path+"/OSGeo4W.bat"
 # saga_path = "C:/Program Files/QGIS 3.8/apps/saga-ltr/saga_cmd.exe"
-saga_path =(qgis_path+"/apps/saga-ltr/saga_cmd.exe")
+saga_path =(qgis_path+"/apps/saga-ltr/saga_cmd.exe") # 3.10때까지는 이 경로였음.
+saga_path =(qgis_path+"/apps/saga/saga_cmd.exe") # 2023.01.25 조 : 3.22.14 LTR 에서 경로가 변경됨.
 
 # _tempFolderSuffix = unicode(uuid.uuid4()).replace('-', '')
 
@@ -66,17 +67,16 @@ class accum_util():
                 
 #                 arg="gdal_calc -A {0} --format GTiff --calc A --outfile={1} ").format(str(list[0]),outputfile)
                         
-                
+                print (run_saga)
                 #nodata 추가함
 #                 create_file.write(str(run_saga)+"\n")
 #                 call_arg =[osgeo4w,run_saga]
 #                 os.system(run_saga)
                 subprocess.call(run_saga,shell=True)
+#                 subprocess.call(run_saga)
                 sleep(0.1)
                 
-#                 subprocess.call(run_saga)
-                
-                
+
 
 #                 subprocess.call(run_saga, shell=True) #나중에 shell=True 사용해서 cmd 안뜨게 함/
                 
@@ -145,21 +145,21 @@ class accum_util():
         username = getpass.getuser()
 #         gdal_calc ="C:/Users/\"{0}\"/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/Kict_Satellite_Precipitation_Converter/Lib/gdal/gdal_calc.py".format(format(username))
         if (Nodata != None):
-#             call_arg = [osgeo4w,
-# #                         "python",
-#                         'gdal_calc',
-#                         '-A',input,'--format','GTiff','--calc','A*30/60',
-#                         '--outfile',str(output),'--NoDataValue',str(Nodata)]
+            call_arg = [osgeo4w,
+#                         "python",
+                        'gdal_calc',
+                        '-A',input,'--format','GTiff','--calc','A*30/60',
+                        '--outfile',str(output),'--NoDataValue',str(Nodata)]
              
-            call_arg = 'gdal_calc -A "{0}" --format GTiff --calc A*30/60 --outfile "{1}" --NoDataValue {2}'.format(input,output,Nodata)
+#             call_arg = 'gdal_calc -A "{0}" --format GTiff --calc A*30/60 --outfile "{1}" --NoDataValue {2}'.format(input,output,Nodata)
              
         if (Nodata==None):
-#             call_arg = [osgeo4w,
-# #                         "python",
-#                         gdal_calc,
-#                         '-A',input,'--format','GTiff','--calc','A*30/60',
-#                         '--outfile',str(output),'--NoDataValue','-9999']
-            call_arg = 'gdal_calc -A "{0}" --format GTiff --calc A*30/60 --outfile "{1}" --NoDataValue -9999'.format(input,output)
+            call_arg = [osgeo4w,
+#                         "python",
+                        gdal_calc,
+                        '-A',input,'--format','GTiff','--calc','A*30/60',
+                        '--outfile',str(output),'--NoDataValue','-9999']
+#             call_arg = 'gdal_calc -A "{0}" --format GTiff --calc A*30/60 --outfile "{1}" --NoDataValue -9999'.format(input,output)
 #         call_arg = "{0} -A {1} --format GTiff --calc A*30/60 --outfile {2} --NoDataValue -9999".format(gdal_calc,input,output) 
 #             call_arg = "gdal_calc -A {0} --format GTiff --calc A*30/60 --outfile {1} --NoDataValue -9999".format(input,output) 
         

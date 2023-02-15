@@ -33,6 +33,8 @@ def classFactory(iface):  # pylint: disable=invalid-name
     """
     #
     from .Util import util
+
     util().import_or_install("imageio")
     from .GPM import GPM
+
     return GPM(iface)

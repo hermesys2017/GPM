@@ -1,6 +1,5 @@
 #    border: 1px solid black;
-css_sheet = (
-    """
+css_sheet = """
         QDockWidget::title {
             background: rgb(200, 200, 200); 
             text-align: left;
@@ -22,4 +21,3 @@ css_sheet = (
     
         QgsMapCanvas#widget{border-style: outset;border-width: 0.5px;border-color:gray;}
     """
-)

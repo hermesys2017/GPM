@@ -8,9 +8,9 @@
 
 """
 
-__author__ = 'mhcho058@hermesys.co.kr'
-__date__ = '2019-10-07'
-__copyright__ = 'Copyright 2019, Hermesys'
+__author__ = "mhcho058@hermesys.co.kr"
+__date__ = "2019-10-07"
+__copyright__ = "Copyright 2019, Hermesys"
 
 import unittest
 
@@ -19,6 +19,7 @@ from qgis.PyQt.QtGui import QDialogButtonBox, QDialog
 from GPM_dialog import GPMDialog
 
 from utilities import get_qgis_app
+
 QGIS_APP = get_qgis_app()
 
 
@@ -48,8 +49,8 @@ class GPMDialogTest(unittest.TestCase):
         result = self.dialog.result()
         self.assertEqual(result, QDialog.Rejected)
 
+
 if __name__ == "__main__":
     suite = unittest.makeSuite(GPMDialogTest)
     runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite)
-

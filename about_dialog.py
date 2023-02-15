@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 /***************************************************************************
  G2DDialog
@@ -37,6 +37,6 @@ class AboutDialog(QtWidgets.QDialog, Ui_Dialog):
 
     # 메뉴얼 실행
     def click_manual(self):
-        path=os.path.dirname(os.path.realpath(__file__))
-        psd = path + '/Lib/manual/User_Manual.pdf' 
-        os.startfile(psd) 
+        path = os.path.dirname(os.path.realpath(__file__))
+        psd = path + "/Lib/manual/User_Manual.pdf"
+        os.startfile(psd)

@@ -27,12 +27,15 @@ from qgis.PyQt.QtWidgets import QAction
 
 # Initialize Qt resources from file resources.py
 from .resources import *
+
 # Import the code for the dialog
 from .GPM_dialog import GPMDialog
 import os.path
 
 
-_iface={}
+_iface = {}
+
+
 class GPM:
     """QGIS Plugin Implementation."""
 
@@ -46,16 +49,13 @@ class GPM:
         """
         # Save reference to the QGIS interface
         self.iface = iface
-        
+
         _iface = iface
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
-        locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'GPM_{}.qm'.format(locale))
+        locale = QSettings().value("locale/userLocale")[0:2]
+        locale_path = os.path.join(self.plugin_dir, "i18n", "GPM_{}.qm".format(locale))
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
@@ -64,7 +64,7 @@ class GPM:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&KICT_Satellite_Precipitation_Converter')
+        self.menu = self.tr("&KICT_Satellite_Precipitation_Converter")
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
@@ -83,8 +83,7 @@ class GPM:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('GPM', message)
-
+        return QCoreApplication.translate("GPM", message)
 
     def add_action(
         self,
@@ -96,7 +95,8 @@ class GPM:
         add_to_toolbar=True,
         status_tip=None,
         whats_this=None,
-        parent=None):
+        parent=None,
+    ):
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -152,9 +152,7 @@ class GPM:
             self.iface.addToolBarIcon(action)
 
         if add_to_menu:
-            self.iface.addPluginToRasterMenu(
-                self.menu,
-                action)
+            self.iface.addPluginToRasterMenu(self.menu, action)
 
         self.actions.append(action)
 
@@ -163,25 +161,25 @@ class GPM:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/GPM/icon/GPM.png'
-#         icon_path = ':/plugins/GPM/icon/KICT_logo_2.png'
-        
+        icon_path = ":/plugins/GPM/icon/GPM.png"
+        #         icon_path = ':/plugins/GPM/icon/KICT_logo_2.png'
+
         self.add_action(
             icon_path,
-            text=self.tr(u'KICT_Satellite_Precipitation_Converter'),
+            text=self.tr("KICT_Satellite_Precipitation_Converter"),
             callback=self.run,
-            parent=self.iface.mainWindow())
+            parent=self.iface.mainWindow(),
+        )
 
         # will be set False in run()
         self.first_start = True
-
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginRasterMenu(
-                self.tr(u'&KICT_Satellite_Precipitation_Converter'),
-                action)
+                self.tr("&KICT_Satellite_Precipitation_Converter"), action
+            )
             self.iface.removeToolBarIcon(action)
 
     def run(self):
@@ -196,6 +194,8 @@ class GPM:
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
+
+
 #         result = self.dlg.exec_()
 #         # See if OK was pressed
 #         if result:

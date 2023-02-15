@@ -23,9 +23,9 @@
 """
 
 import os
-import sys
 import shutil
 import getpass
+import math
 
 from qgis import *
 from qgis.analysis import *
@@ -33,16 +33,20 @@ from qgis.PyQt import QtWidgets
 from qgis.core import *
 from qgis.gui import QgsMapToolEmitPoint
 
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+
 import subprocess as sub
 from time import sleep
 import time
 
-from . import wget
-from . import Util as util
-from . import Dict_Clip as dCilp
-from . import Dict
-from . import CM_Method
-from .about_dialog import *
+import wget
+import Util as util
+import Dict_Clip as dCilp
+import Dict
+import CM_Method
+from about_dialog import *
 
 from osgeo import *
 import csv
@@ -53,39 +57,20 @@ from GPM_dialog_ui import Ui_MainWindow
 # 2022.12.28 조 : imageio가 없어서 기본 설치하도록 수정
 # util.util().import_or_install("pillow")
 # util.util().import_or_install("_imaging")
-import PIL
-from PIL import ImageFont, Image, ImageDraw
-import imageio
-
 # import imageio.v3 as iio
 
-import Canvas_Tools
-import util_accum
-import png_background_Transparent as png_trans
-
-from .src import transpose_Tiff as tr_Tiff
-from .src.data_download import GPM_download
-
-sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + "/Lib/convert2tiff")
-import GSMap_convert_tiff
-
-sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + "/Lib/accum")
-import GPM_Accum
-import GSMap_accum
-import CMORPH_accum
-
-import requests
-
-# 2020-10-20 박:
-import math
-
-sys.path.insert(
-    0, os.path.dirname(os.path.realpath(__file__)) + "/Lib/Satellite_Correction"
+from src import (
+    Canvas_Tools,
+    util_accum,
+    transpose_Tiff as tr_Tiff,
+    GSMap_convert_tiff,
+    OneFileCorrection_class as OneFile,
 )
-import OneFileCorrection_class as OneFile
+from src.data_download import GPM_download
+from src.accum import GPM_Accum, GSMap_accum, CMORPH_accum
+from src.lib import imageio
+from src.lib.PIL import ImageFont, Image, ImageDraw
 
-# This loads your .ui file so that PyQt can populate your plugin with the
-# elements from Qt Designer
 
 path = os.path.dirname(os.path.realpath(__file__))
 settings_icon = path + "\image\settings.png"
@@ -95,7 +80,6 @@ _Dict_clip = dCilp.dict_clip()
 _Dict = Dict.dict()
 _utilAC = util_accum.accum_util()
 _corr = OneFile.satellite_correction()
-_iface = {}
 _layers = {}
 
 DATE_TIME_FORMAT = "yyyy-MM-dd"

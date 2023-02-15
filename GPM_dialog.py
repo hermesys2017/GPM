@@ -54,7 +54,7 @@ from .about_dialog import *
 
 from osgeo import *
 import csv
-from osgeo import gdal,gdalconst,osr
+from GPM_dialog_ui import Ui_MainWindow
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib')
 
@@ -91,7 +91,6 @@ import OneFileCorrection_class as OneFile
 
 # This loads your .ui file so that PyQt can populate your plugin with the
 # elements from Qt Designer
-FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'GPM.ui'))
 
 path = os.path.dirname(os.path.realpath(__file__))
 settings_icon = path + '\image\settings.png'
@@ -104,8 +103,7 @@ _corr = OneFile.satellite_correction()
 _iface = {}
 _layers = {}
 
-DATE_TIME_FORMAT="yyyy-MM-dd"
-class GPMDialog(QtWidgets.QMainWindow, FORM_CLASS):
+class GPMDialog(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super(GPMDialog, self).__init__(parent)
         self.setupUi(self)

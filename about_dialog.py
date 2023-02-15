@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 /***************************************************************************
  G2DDialog
@@ -22,13 +22,11 @@
  ***************************************************************************/
 """
 import os
-from PyQt5 import uic
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QDockWidget
+from about_dialog_ui import Ui_Dialog
 
 
-FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'about.ui'))
-class AboutDialog(QtWidgets.QDialog, FORM_CLASS):
+class AboutDialog(QtWidgets.QDialog, Ui_Dialog):
     def __init__(self, parent=None):
         super(AboutDialog, self).__init__(parent)
         self.setupUi(self)

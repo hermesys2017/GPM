@@ -26,14 +26,11 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
 # Initialize Qt resources from file resources.py
-from .resources import *
+from resources import *
 
 # Import the code for the dialog
-from .GPM_dialog import GPMDialog
+from GPM_dialog import GPMDialog
 import os.path
-
-
-_iface = {}
 
 
 class GPM:

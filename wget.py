@@ -9,16 +9,14 @@ change log =  2019-01-02 : ftp 경로 수정
 @author: MH.CHO
 """
 
-import os, sys
-from datetime import datetime, timedelta
+import os
 import getpass
 import ftplib
-import re
-import subprocess
 import requests
 
-sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + "/Lib/data_download")
-import cmorph_download as cmorph
+from datetime import datetime, timedelta
+
+from src.data_download import cmorph_download as cmorph
 
 username = getpass.getuser()
 wget_path = os.path.dirname(os.path.abspath(__file__)) + "/Lib/wget.exe"

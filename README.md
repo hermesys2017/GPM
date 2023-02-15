@@ -1,21 +1,14 @@
-# KICT_Satellite_Precipitation_Converter
-#### (구) GPM 플러그인
+# KICT_Satellitec_Precipitation_Converter by QGIS 3
+#### (old)GPM
 
-	KICT Satellite Precipitation Converter In QGIS 3
 
-	v0.0.38
-		: Data Download -  ADD Data GSMap
-		: Convert to TIFF - Convert GSMap to TIFF
-		: Make CSV - Add ComboBox FieldName
-		: Accum - ADD GSMap
-		: Make Image - change color polygon, polyline, change symbol point 
-	
-	v0.0.39
-		: Convert to TIFF - Normalize Convert HDF5 to TIFF 
-		: Accum - (CMORPH, GSMap) Modification of Cumulative Rainfall Calculation
-		
-	v0.0.40
-		: Make Image - Some modify, create GIF Filename
-	
-	v0.0.41
-		: Accum - Modify Path (SAGA.cmd, OSGeo4W.bat)
+
+* 2023.01.11 : QGIS 3.22.14 LTR 기준으로 업그레이드 시도중.
+
+### History
+---
+2023.01.27 
+```
+v0.1.1
+	: QGIS 3.22 로 적용 중 일부 기능 장애 해소되었음.
+```

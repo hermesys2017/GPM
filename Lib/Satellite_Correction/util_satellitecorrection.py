@@ -46,11 +46,62 @@ class Util_satellitecorrection():
         file = open(obsData)
         dataItems = file.read().split()
         
-        for i in range(5):
+        for i in range(12):
             if (dataItems[i].lower() == 'ncols'):
                 ncols = int(dataItems[i+1])
             
         return ncols
+    
+    def header_nrows(self,obsData):
+        file = open(obsData)
+        dataItems = file.read().split()
+        
+        for i in range(12):
+            if (dataItems[i].lower() == 'nrows'):
+                nrows = int(dataItems[i+1])
+            
+        return nrows
+    
+    
+    def header_xllcorner(self,obsData):
+        file = open(obsData)
+        dataItems = file.read().split()
+        
+        for i in range(12):
+            if (dataItems[i].lower() == 'xllcorner'):
+                xllcorner = float(dataItems[i+1])
+            
+        return xllcorner
+    
+    def header_yllcorner(self,obsData):
+        file = open(obsData)
+        dataItems = file.read().split()
+        
+        for i in range(12):
+            if (dataItems[i].lower() == 'yllcorner'):
+                yllcorner = float(dataItems[i+1])
+            
+        return yllcorner
+    
+    def header_cellsize(self,obsData):
+        file = open(obsData)
+        dataItems = file.read().split()
+        
+        for i in range(12):
+            if (dataItems[i].lower() == 'cellsize'):
+                cellsize = float(dataItems[i+1])
+            
+        return cellsize
+    
+    def header_nodata(self,obsData):
+        file = open(obsData)
+        dataItems = file.read().split()
+        
+        for i in range(12):
+            if (dataItems[i].lower() == 'nodata_value'):
+                nodata = float(dataItems[i+1])
+            
+        return nodata
     
     def obsData_body(self,obsData):
         file = open(obsData)

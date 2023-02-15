@@ -14,10 +14,16 @@ import os.path
 from subprocess import Popen
 from os import listdir
 import re
+import requests
+import pip
 # from qgis.core import QgsMapLayerRegistry
 # reload(sys)
 # sys.setdefaultencoding('utf-8')
+qgis_paths = QgsApplication.showSettings()
+qgis_paths = qgis_paths.split('\n')
 
+qgis_path=str(os.path.dirname(os.path.dirname(str(qgis_paths[1].split("\t\t")[1]))))
+osgeo4w=qgis_path+"/OSGeo4W.bat"
 class util:
     def Execute(self, arg):
         value = call(arg,shell=True)
@@ -94,8 +100,18 @@ class util:
                 layer = lyr
         return layer.dataProvider().dataSourceUri()
 
+    # 모듈 있는지 체크 후 없으면 설치, pip 사용 - 2022.12.28 조 추가
+    def import_or_install(self,package):
 
-
+        try:
+            __import__(package)
+#             python3 -m pip install --ignore-installed --no-cache-dir --user imageio
+            
+        except ImportError:
+            run_string=osgeo4w+f" python3 -m pip install --ignore-installed --no-cache-dir --user {package}"
+            print (run_string)
+            sp=os.system(f"{run_string}")
+            print ("ImportError, install package - ", str(package))  
 
     # 파일 존재 유무 확인
     def CheckFile(self, path):
@@ -335,3 +351,13 @@ class util:
         if os.path.exists(path) == False:
             os.mkdir(path)
         
+    #2020-09-07 박: 
+    #def connected_to_internet(self,url='http://www.google.com/', timeout=5):
+    #def connected_to_internet(self,url='https://jsimpsonhttps.pps.eosdis.nasa.gov/text', timeout=5):
+    def connected_to_internet(self,url, timeout=5):
+        try:
+            requests.get(url, timeout=timeout)
+            return True
+        except requests.ConnectionError:
+            return False
+

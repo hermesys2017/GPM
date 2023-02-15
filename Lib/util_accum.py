@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-import sys,os,subprocess
+import sys,os,subprocess,getpass
 from qgis.core import QgsApplication
 from qgis.PyQt.QtCore import QDir
 import uuid
@@ -11,6 +11,9 @@ from osgeo import gdal
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 import Util
 _util = Util.util()
+
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib')
 
 #gdal을 사용하기 위한 환경 설정
 qgis_paths = QgsApplication.showSettings()
@@ -22,8 +25,8 @@ qgis_path=str(os.path.dirname(os.path.dirname(str(qgis_paths[1].split("\t\t")[1]
 # osgeo4w="C:/Program Files/QGIS 3.8/OSGeo4W.bat"
 osgeo4w=qgis_path+"/OSGeo4W.bat"
 # saga_path = "C:/Program Files/QGIS 3.8/apps/saga-ltr/saga_cmd.exe"
-saga_path =(qgis_path+"/apps/saga-ltr/saga_cmd.exe")
-# print (saga_path)
+saga_path =(qgis_path+"/apps/saga-ltr/saga_cmd.exe") # 3.10때까지는 이 경로였음.
+saga_path =(qgis_path+"/apps/saga/saga_cmd.exe") # 2023.01.25 조 : 3.22.14 LTR 에서 경로가 변경됨.
 
 # _tempFolderSuffix = unicode(uuid.uuid4()).replace('-', '')
 
@@ -39,6 +42,10 @@ class accum_util():
         #환경 설정
 #         saga_ltr=os.environ["SAGA"] = 'C:/Program Files/QGIS 3.8/apps/saga-ltr'
 #         saga_modules=os.environ["SAGA_MLB"] ='C:/Program Files/QGIS 3.8/apps/saga-ltr/modules'
+        saga_ltr=os.environ["SAGA"] = qgis_path+'/apps/saga-ltr'
+        saga_modules=os.environ["SAGA_MLB"] =qgis_path+'/apps/saga-ltr/modules'
+        print(saga_modules)
+        print(qgis_path)
 #         PATH=os.environ["PATH"]='C:/PROGRA~1/QGIS2~1.18/apps/Python27/lib/site-packages/Shapely-1.2.18-py2.7-win-amd64.egg/shapely/DLLs;C:/PROGRA~1/QGIS2~1.18/apps/Python27/DLLs;C:/PROGRA~1/QGIS2~1.18/apps/Python27/lib/site-packages/numpy/core;C:/PROGRA~1/QGIS2~1.18/apps/qgis-ltr/bin;C:/PROGRA~1/QGIS2~1.18/apps/Python27/Scripts;C:/PROGRA~1/QGIS2~1.18/bin;C:/WINDOWS/system32;C:/WINDOWS;C:/WINDOWS/system32/WBem;C:/PROGRA~1/QGIS2~1.18/apps/saga-ltr;C:/PROGRA~1/QGIS2~1.18/apps/saga-ltr/modules'
         
         onelist=[]
@@ -60,17 +67,16 @@ class accum_util():
                 
 #                 arg="gdal_calc -A {0} --format GTiff --calc A --outfile={1} ").format(str(list[0]),outputfile)
                         
-                
+                print (run_saga)
                 #nodata 추가함
 #                 create_file.write(str(run_saga)+"\n")
 #                 call_arg =[osgeo4w,run_saga]
 #                 os.system(run_saga)
                 subprocess.call(run_saga,shell=True)
+#                 subprocess.call(run_saga)
                 sleep(0.1)
                 
-#                 subprocess.call(run_saga)
-                
-                
+
 
 #                 subprocess.call(run_saga, shell=True) #나중에 shell=True 사용해서 cmd 안뜨게 함/
                 
@@ -85,6 +91,35 @@ class accum_util():
     
     
     
+#     #accum time 별
+#     def accum_gdal(self,hour,TIFF_list,output):
+#         if (hour =="1H"):
+#             self.accum_1H(TIFF_list,output)
+#     
+#     def accum_1H(self,TIFF_list,output):
+#         try:
+#             list=[]
+#             for file in TIFF_list:
+#                 filename = _util.GetFilename(file)
+#                 
+#                 list.append(file)
+#                 if len(list)>2:
+#                     del list[0:2]
+#                 if len(list)==2:
+#                     tiff_ds = gdal.Open(str(list[0]))
+#                     Nodata = (tiff_ds.GetRasterBand(1) .GetNoDataValue())
+#                      
+#                     if (Nodata != None):
+#                         arg="gdal_calc -A {0} -B {1} --format GTiff --calc A+B --outfile={2} --NoDataValue {3}".format(str(list[0]),str(list[1]),output,str(Nodata))
+#                     if (Nodata == None):
+#                         arg="gdal_calc -A {0} -B {1} --format GTiff --calc A+B --outfile={2} --NoDataValue -9999".format(str(list[0]),str(list[1]),output)
+#                     subprocess.call(arg,shell=True)
+#     #                         os.system(arg)
+#                     sleep(0.1)
+#         except Exception as exc:
+#             _util.MessageboxShowError("Accum",str(e))            
+        
+#         create_file.close()   
     def gdal_format_convert(self,input,output):
 #         arg = "gdal_translate -of GTiff "
 #         arg = arg +" " + input+" " + output
@@ -107,23 +142,31 @@ class accum_util():
     def accum_amount(self,input,output):
         tiff_ds = gdal.Open(input)
         Nodata = tiff_ds.GetRasterBand(1) .GetNoDataValue()
-        
+        username = getpass.getuser()
+#         gdal_calc ="C:/Users/\"{0}\"/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/Kict_Satellite_Precipitation_Converter/Lib/gdal/gdal_calc.py".format(format(username))
         if (Nodata != None):
             call_arg = [osgeo4w,
-                        "gdal_calc",
-                        "-A",input,"--format","GTiff","--calc","A*30/60",
-                        "--outfile",str(output),"--NoDataValue",str(Nodata)]
-            
-#             call_arg = "gdal_calc -A {0} --format GTiff --calc A*30/60 --outfile {1} --NoDataValue {2}".format(input,output,Nodata)
-            
+#                         "python",
+                        'gdal_calc',
+                        '-A',input,'--format','GTiff','--calc','A*30/60',
+                        '--outfile',str(output),'--NoDataValue',str(Nodata)]
+             
+#             call_arg = 'gdal_calc -A "{0}" --format GTiff --calc A*30/60 --outfile "{1}" --NoDataValue {2}'.format(input,output,Nodata)
+             
         if (Nodata==None):
             call_arg = [osgeo4w,
-                 "gdal_calc",
-                 "-A",input,"--format","GTiff","--calc","A*30/60",
-                 "--outfile",str(output),"--NoDataValue","-9999"]
+#                         "python",
+                        gdal_calc,
+                        '-A',input,'--format','GTiff','--calc','A*30/60',
+                        '--outfile',str(output),'--NoDataValue','-9999']
+#             call_arg = 'gdal_calc -A "{0}" --format GTiff --calc A*30/60 --outfile "{1}" --NoDataValue -9999'.format(input,output)
+#         call_arg = "{0} -A {1} --format GTiff --calc A*30/60 --outfile {2} --NoDataValue -9999".format(gdal_calc,input,output) 
 #             call_arg = "gdal_calc -A {0} --format GTiff --calc A*30/60 --outfile {1} --NoDataValue -9999".format(input,output) 
-    
+        
+        print (call_arg)
+        
         subprocess.call(call_arg,shell=True)
+#         os.system(call_arg)
         sleep(0.2)
         
         

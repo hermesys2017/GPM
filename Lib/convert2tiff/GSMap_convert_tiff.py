@@ -19,7 +19,7 @@ def convert2tiff_GSMap(file,tif_path):
     output = (os.path.dirname(file))+"/"+(str(os.path.basename(file)).split(".gz")[0])
     #HDR 생성
     HDR_contxt='{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n{8}\n{9}'.format('ncols 3600','nrows 1200','cellsize 0.1','xllcorner 0',
-                                                          'yllcorner -60','nodata_value -99','#nbits 32','#pixeltype float',
+                                                          'yllcorner -60','nodata_value -9999','#nbits 32','#pixeltype float',
                                                           'byteorder lsbfirst','#layout bsq')
     #prj 생성
     prj_contxt='GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]]'

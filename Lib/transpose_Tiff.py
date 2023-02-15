@@ -5,7 +5,7 @@ Created on 2018. 11. 14.
 @author: MHCHO
 '''
 
-import gdal,gdalconst,osr
+from osgeo import gdal,gdalconst,osr
 import osgeo.gdalnumeric as gdn
 import osgeo
 from osgeo.gdal import Dataset

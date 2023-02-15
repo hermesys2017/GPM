@@ -1,12 +1,9 @@
 ﻿# -*- coding: utf-8 -*-
-import sys
 import subprocess
 import os, re
-from datetime import datetime, timedelta
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
 
+from datetime import datetime, timedelta
+from qgis.PyQt.QtWidgets import QApplication, QMessageBox
 
 wget_path = (
     '"'

@@ -5,12 +5,9 @@ Created on 2018. 11. 14.
 @author: MHCHO
 """
 
-from osgeo import gdal, gdalconst, osr
-import osgeo.gdalnumeric as gdn
-import osgeo
-from osgeo.gdal import Dataset
 import numpy
-import os
+
+from osgeo import gdal, osr
 
 
 class transpose_Tiff_class:

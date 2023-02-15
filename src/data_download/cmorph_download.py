@@ -7,10 +7,7 @@ Created on 2019. 12. 11.
 @author: USER
 """
 
-import os, getpass
-
-
-from datetime import *
+from datetime import datetime, timedelta
 
 # username = getpass.getuser()
 # wget_path = os.path.dirname(os.path.abspath(__file__))+"/Lib/wget.exe"

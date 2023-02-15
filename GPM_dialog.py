@@ -33,11 +33,6 @@ from qgis.PyQt import QtWidgets
 from qgis.core import *
 from qgis.gui import QgsMapToolEmitPoint
 
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
-
-
 import subprocess as sub
 from time import sleep
 import time
@@ -54,7 +49,6 @@ import csv
 from osgeo import gdal, osr
 from GPM_dialog_ui import Ui_MainWindow
 
-sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + "/Lib")
 
 # 2022.12.28 조 : imageio가 없어서 기본 설치하도록 수정
 # util.util().import_or_install("pillow")
@@ -65,13 +59,12 @@ import imageio
 
 # import imageio.v3 as iio
 
-import transpose_Tiff as tr_Tiff
 import Canvas_Tools
 import util_accum
 import png_background_Transparent as png_trans
 
-sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + "/Lib/data_download")
-import GPM_download
+from .src import transpose_Tiff as tr_Tiff
+from .src.data_download import GPM_download
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + "/Lib/convert2tiff")
 import GSMap_convert_tiff

@@ -4,9 +4,6 @@ Created on 2018. 12. 11.
 
 @author: MHCHO
 """
-
-import os
-
 # import configparser
 # filePath = os.path.dirname(os.path.abspath(__file__))+"/Lib/reference/clip_zone.ini"
 

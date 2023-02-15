@@ -1,14 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import os
-import sys
-
-from qgis.gui import *
-from PyQt5 import QtGui
-from qgis.core import *
-from qgis.utils import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+from qgis.gui import QgsMapTool, QgsMapToolPan
+from qgis.PyQt.QtWidgets import QAction
 
 
 class Canvas_Tools(QgsMapTool):

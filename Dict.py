@@ -1,8 +1,4 @@
 # -*- coding: utf-8 -*-
-import sys
-import os
-import os.path
-
 
 class dict:
     def __init__(self):

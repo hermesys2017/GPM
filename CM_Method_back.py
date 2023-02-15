@@ -8,9 +8,10 @@
  4. origin 위성-DIFF
 ------------------
 """
-import sys, os, subprocess
+import os
+
 from qgis import processing
-from qgis.core import *
+from qgis.core import QgsRasterLayer
 from osgeo import gdal
 
 

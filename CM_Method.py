@@ -8,23 +8,17 @@
  4. origin 위성-DIFF
 ------------------
 """
-
-
-import sys, os, subprocess
+import os, subprocess
 
 from qgis import processing
-from qgis.core import *
-
-# import gdal
-import shutil
-
+from qgis.core import (
+    QgsRasterLayer,
+    QgsCoordinateReferenceSystem,
+    QgsVectorLayer,
+    QgsVectorFileWriter,
+)
+from qgis.PyQt.QtWidgets import QTableWidgetItem
 from osgeo import gdal, osr
-
-# import gdal,osr
-
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
 
 
 class cm_method:

@@ -32,9 +32,6 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
     #
-    from .Util import util
-
-    util().import_or_install("imageio")
     from .GPM import GPM
 
     return GPM(iface)

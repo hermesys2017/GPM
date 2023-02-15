@@ -1,0 +1,11 @@
+{
+  "python.autoComplete.extraPaths": [
+    "C:/Users/seokmin/miniconda3/envs/qgis_stable/Library/python",
+    "C:/Users/seokmin/miniconda3/envs/qgis_stable/Library/python/plugins/"
+  ],
+  "python.analysis.extraPaths": [
+    "C:/Users/seokmin/miniconda3/envs/qgis_stable/Library/python",
+    "C:/Users/seokmin/miniconda3/envs/qgis_stable/Library/python/plugins/"
+  ],
+  "python.formatting.provider": "black",
+}

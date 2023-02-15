@@ -12,7 +12,7 @@ import os, sys
 
 import Util
 
-import util_accum
+from .. import util_accum
 
 _util = Util.util()
 _utilAC = util_accum.accum_util()

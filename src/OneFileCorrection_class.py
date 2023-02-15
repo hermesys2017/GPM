@@ -24,18 +24,16 @@
  ***************************************************************************/
 """
 
-import os, sys
-import platform
-from math import sqrt, e
+import os
+from math import e
 import numpy
 
 # import header_class
-from time import sleep
 import time
 import datetime
 
 # sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)) + '/Lib')
-import util_satellitecorrection as util_sc
+from . import util_satellitecorrection as util_sc
 
 # g_distance_km=0
 ErrOneMsg = ""
@@ -47,47 +45,6 @@ _util_sc = util_sc.Util_satellitecorrection()
 
 
 class satellite_correction:
-    # asc 를 불러오고 cols, rows를 받아오는 함수
-    #     def Get_ASC_header_and_body(self,asc_file):
-    #         global ErrOneMsg #오류 메시지를 모음
-    #
-    #         satellite_read = open(asc_file)
-    #         dataItems = satellite_read.read().split()#읽은 위성관측자료의 데이터를 split() 함
-    #
-    #         #위성관측 자료 데이터 값, 여기서 처리
-    #         _header.body = numpy.loadtxt(asc_file,skiprows= (6))
-    # #         self.body = numpy.loadtxt(asc_file,skiprows= (6))
-    #
-    #         try:
-    #             for i in range(20):
-    #                 if  (dataItems[i].lower() == 'ncols') :
-    #                     _header.ncols = int(dataItems[i+1])
-    # #                     self.ncols= int(dataItems[i+1])
-    #                 if  (dataItems[i].lower() == 'nrows') :
-    #                     _header.nrows = int(dataItems[i+1])
-    #                     self.nrows = int(dataItems[i+1])
-    #                 if (dataItems[i].lower() == 'xllcorner'):
-    #                     _header.xllcorner = float(dataItems[i+1])
-    # #                     self.xllcorner= float(dataItems[i+1])
-    #                 if (dataItems[i].lower() == 'yllcorner'):
-    #                     _header.yllcorner = float(dataItems[i+1])
-    # #                     self.yllcorner= float(dataItems[i+1])
-    #                 if (dataItems[i].lower() == 'cellsize'):
-    #                     _header.cellsize = float(dataItems[i+1])
-    # #                     self.cellsize= float(dataItems[i+1])
-    #                 if (dataItems[i].lower() == 'nodata_value'):
-    #                     _header.nodata_value = float(dataItems[i+1])
-    # #                     self.nodata_value = float(dataItems[i+1])
-    #
-    #             #파일을 이제 닫아요.
-    #             satellite_read.close()
-    #
-    #         except Exception as exc:
-    #             strErrmsg = "Get_ASC_header_and_body :"+str(exc)
-    #             if strErrmsg not in ErrOneMsg:
-    #                 ErrOneMsg= ErrOneMsg + strErrmsg+" / "
-    #             return False
-
     # 모든 함수를 처리하는 main 함수
     def run_correction(self, save_path, asc_file_list, groundFile_list, _decimal):
         global InformMsg
@@ -794,18 +751,3 @@ class satellite_correction:
                 os.path.basename(asc_file), ErrOneMsg
             )  # + "/n"+str(obsavgvalue)
             return errmsg
-
-
-# sate = satellite_correction()
-#
-# save_path="D:/Working/KICT/Gungiyeon/GPM/GPM_test/qgisv3/T_20191115/qgis3/console"
-# # # asc_file_list=[u"D:/Working/KICT/Gungiyeon/GPM/GPM_test/qgisv3/T_20191023/5_ASC/10000/CMORPH_V1.0_ADJ_0.25deg-3HLY_20180901_0_Clip_UTM_resample.asc"]
-# # # groundFile_list=[u"D:/Working/KICT/Gungiyeon/GPM/GPM_test/qgisv3/T_20191023/groundData_test/CMORPH_V1.0_ADJ_0.25deg-3HLY_20180901_0_Clip_UTM_resample.csv"]
-# asc_file_list=["D:/Working/KICT/Gungiyeon/GPM/GPM_test/qgisv3/T_20191106/SAT/yeonsei_testcase.asc"]
-# groundFile_list=["D:/Working/KICT/Gungiyeon/GPM/GPM_test/qgisv3/T_20191115/yeonsei_testcase_ground.csv"]
-# # # # # asc_file_list=["D:/Working/KICT/Gungiyeon/GPM/GPM_test/qgisv3/T_20191023/Sat/hanbando_sample/asc/3B-HHR-L.MS.MRG.3IMERG.20191001-S150000-E152959.0900.V06B.30min_Clip_Amount_1H.asc"]
-# # # # # groundFile_list=["D:/Working/KICT/Gungiyeon/GPM/GPM_test/qgisv3/T_20191023/Sat/hanbando_sample/2019100201.csv"]
-#
-# _decimal=2
-#
-# sate.run_correction(save_path, asc_file_list, groundFile_list, _decimal)

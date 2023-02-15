@@ -1,6 +1,0 @@
-<RCC>
-  <qresource prefix="/plugins/GPM">
-    <file>icon/logo.gif</file>
-    <file>icon/GPM.png</file>
-  </qresource>
-</RCC>
